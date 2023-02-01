@@ -8,20 +8,16 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-extension UTType {
-    static var exampleText: UTType {
-        UTType(importedAs: "com.example.plain-text")
-    }
-}
-
 struct Cosmic_WriterDocument: FileDocument {
     var text: String
+    var title: String
 
-    init(text: String = "Hello, world!") {
+    init(text: String = "", title: String = "") {
         self.text = text
+        self.title = title
     }
 
-    static var readableContentTypes: [UTType] { [.exampleText] }
+    static var readableContentTypes: [UTType] = [UTType.plainText]
 
     init(configuration: ReadConfiguration) throws {
         guard let data = configuration.file.regularFileContents,
@@ -29,6 +25,13 @@ struct Cosmic_WriterDocument: FileDocument {
         else {
             throw CocoaError(.fileReadCorruptFile)
         }
+        guard let titleData = configuration.file.filename
+        else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        
+        let regex = /\.exampletext/
+        title = titleData.replacing(regex, with: "")
         text = string
     }
     

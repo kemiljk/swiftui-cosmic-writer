@@ -12,6 +12,13 @@
 		CF1C8F382989183D00CEF906 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1C8F372989183D00CEF906 /* ContentView.swift */; };
 		CF1C8F3A2989183F00CEF906 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF1C8F392989183F00CEF906 /* Assets.xcassets */; };
 		CF1C8F3F2989183F00CEF906 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */; };
+		CF9814382989371D00E64BEB /* SwiftDown in Frameworks */ = {isa = PBXBuildFile; productRef = CF9814372989371D00E64BEB /* SwiftDown */; };
+		CF98143A298939A700E64BEB /* darkTheme.json in Resources */ = {isa = PBXBuildFile; fileRef = CF981439298939A700E64BEB /* darkTheme.json */; };
+		CF98143D29894B4700E64BEB /* RoundedCornerShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF98143C29894B4700E64BEB /* RoundedCornerShape.swift */; };
+		CF98143F29894B5E00E64BEB /* HideKeyboardExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF98143E29894B5E00E64BEB /* HideKeyboardExtension.swift */; };
+		CF981441298955E000E64BEB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF981440298955E000E64BEB /* SettingsView.swift */; };
+		CFE33672298ABC7F00980014 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = CFE33671298ABC7F00980014 /* Markdown */; };
+		CFF87FB82989A5D700CDDBC3 /* lightTheme.json in Resources */ = {isa = PBXBuildFile; fileRef = CFF87FB72989A5D700CDDBC3 /* lightTheme.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +30,11 @@
 		CF1C8F3B2989183F00CEF906 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CF1C8F3C2989183F00CEF906 /* Cosmic_Writer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Cosmic_Writer.entitlements; sourceTree = "<group>"; };
 		CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		CF981439298939A700E64BEB /* darkTheme.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = darkTheme.json; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.json; };
+		CF98143C29894B4700E64BEB /* RoundedCornerShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoundedCornerShape.swift; sourceTree = "<group>"; };
+		CF98143E29894B5E00E64BEB /* HideKeyboardExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HideKeyboardExtension.swift; sourceTree = "<group>"; };
+		CF981440298955E000E64BEB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		CFF87FB72989A5D700CDDBC3 /* lightTheme.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = lightTheme.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -30,6 +42,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CF9814382989371D00E64BEB /* SwiftDown in Frameworks */,
+				CFE33672298ABC7F00980014 /* Markdown in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -57,7 +71,10 @@
 			children = (
 				CF1C8F332989183D00CEF906 /* Cosmic_WriterApp.swift */,
 				CF1C8F352989183D00CEF906 /* Cosmic_WriterDocument.swift */,
-				CF1C8F372989183D00CEF906 /* ContentView.swift */,
+				CF981439298939A700E64BEB /* darkTheme.json */,
+				CFF87FB72989A5D700CDDBC3 /* lightTheme.json */,
+				CF981434298919CA00E64BEB /* Views */,
+				CF98143B29894B3500E64BEB /* Helpers */,
 				CF1C8F392989183F00CEF906 /* Assets.xcassets */,
 				CF1C8F3B2989183F00CEF906 /* Info.plist */,
 				CF1C8F3C2989183F00CEF906 /* Cosmic_Writer.entitlements */,
@@ -72,6 +89,24 @@
 				CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		CF981434298919CA00E64BEB /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				CF1C8F372989183D00CEF906 /* ContentView.swift */,
+				CF981440298955E000E64BEB /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		CF98143B29894B3500E64BEB /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				CF98143C29894B4700E64BEB /* RoundedCornerShape.swift */,
+				CF98143E29894B5E00E64BEB /* HideKeyboardExtension.swift */,
+			);
+			path = Helpers;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -90,6 +125,10 @@
 			dependencies = (
 			);
 			name = "Cosmic Writer";
+			packageProductDependencies = (
+				CF9814372989371D00E64BEB /* SwiftDown */,
+				CFE33671298ABC7F00980014 /* Markdown */,
+			);
 			productName = "Cosmic Writer";
 			productReference = CF1C8F302989183D00CEF906 /* Cosmic Writer.app */;
 			productType = "com.apple.product-type.application";
@@ -118,6 +157,10 @@
 				Base,
 			);
 			mainGroup = CF1C8F272989183D00CEF906;
+			packageReferences = (
+				CF9814362989371D00E64BEB /* XCRemoteSwiftPackageReference "SwiftDown" */,
+				CFE33670298ABC7F00980014 /* XCRemoteSwiftPackageReference "swiftui-markdown" */,
+			);
 			productRefGroup = CF1C8F312989183D00CEF906 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -132,7 +175,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CF98143A298939A700E64BEB /* darkTheme.json in Resources */,
 				CF1C8F3F2989183F00CEF906 /* Preview Assets.xcassets in Resources */,
+				CFF87FB82989A5D700CDDBC3 /* lightTheme.json in Resources */,
 				CF1C8F3A2989183F00CEF906 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -146,6 +191,9 @@
 			files = (
 				CF1C8F342989183D00CEF906 /* Cosmic_WriterApp.swift in Sources */,
 				CF1C8F362989183D00CEF906 /* Cosmic_WriterDocument.swift in Sources */,
+				CF98143F29894B5E00E64BEB /* HideKeyboardExtension.swift in Sources */,
+				CF981441298955E000E64BEB /* SettingsView.swift in Sources */,
+				CF98143D29894B4700E64BEB /* RoundedCornerShape.swift in Sources */,
 				CF1C8F382989183D00CEF906 /* ContentView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -276,6 +324,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Cosmic Writer/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Writer;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -296,10 +346,12 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kejk.Cosmic-Writer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1,2,6";
 			};
 			name = Debug;
 		};
@@ -317,6 +369,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Cosmic Writer/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Writer;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -337,10 +391,12 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kejk.Cosmic-Writer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1,2,6";
 			};
 			name = Release;
 		};
@@ -366,6 +422,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CF9814362989371D00E64BEB /* XCRemoteSwiftPackageReference "SwiftDown" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/qeude/SwiftDown.git";
+			requirement = {
+				branch = develop;
+				kind = branch;
+			};
+		};
+		CFE33670298ABC7F00980014 /* XCRemoteSwiftPackageReference "swiftui-markdown" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jaywcjlove/swiftui-markdown#:~:text=Enter-,https%3A//github.com/jaywcjlove/markdown,-the%20Search%20or";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CF9814372989371D00E64BEB /* SwiftDown */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CF9814362989371D00E64BEB /* XCRemoteSwiftPackageReference "SwiftDown" */;
+			productName = SwiftDown;
+		};
+		CFE33671298ABC7F00980014 /* Markdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CFE33670298ABC7F00980014 /* XCRemoteSwiftPackageReference "swiftui-markdown" */;
+			productName = Markdown;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CF1C8F282989183D00CEF906 /* Project object */;
 }

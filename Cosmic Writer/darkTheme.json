@@ -1,0 +1,80 @@
+{
+"name": "darkTheme",
+"author": {
+    "name": "Karl Koch",
+    "email": "karl@kejk.tech"
+},
+"version": "1.0",
+"editor": {
+    "backgroundColor": "#111111",
+    "tintColor": "#0A5B7D",
+    "cursorColor": "#2AAAE2"
+},
+"styles": {
+    "h1": {
+        "font": "Avenir-Black",
+        "color": "#F7FBFC",
+        "size": 23
+    },
+    "h2": {
+        "font": "Avenir-Heavy",
+        "color": "#F7FBFC",
+        "size": 20
+    },
+    "h3": {
+        "font": "Avenir-Heavy",
+        "color": "#F7FBFC",
+        "size": 18
+    },
+    "h4": {
+        "font": "Avenir-Heavy",
+        "color": "#F7FBFC"
+    },
+    "h5": {
+        "font": "Avenir-Heavy",
+        "color": "#F7FBFC"
+    },
+    "h6": {
+        "font": "Avenir-Heavy",
+        "color": "#F7FBFC"
+    },
+    "body": {
+        "font": "Avenir-Book",
+        "size": 15,
+        "color": "#ABBBC2"
+    },
+    "bold": {
+        "font": "Avenir-Heavy",
+        "color": "#8A63D2"
+    },
+    "italic": {
+        "font": "Avenir-Oblique",
+        "color": "#2188FF"
+    },
+    "link": {
+        "font": "Avenir-Heavy",
+        "size": 15,
+        "color": "#29ABE2"
+    },
+    "image": {
+        "font": "Avenir-Book",
+        "color": "#F26060"
+    },
+    "inlineCode": {
+        "font": "Menlo-Regular",
+        "color": "#9AE1C9"
+    },
+    "codeBlock": {
+        "font": "Menlo-Regular",
+        "color": "#ABBBC2"
+    },
+    "blockQuote": {
+        "font": "Avenir-Book",
+        "color": "#FFD33D"
+    },
+    "list": {
+        "font": "Avenir-Book",
+        "color": "#EC6CB9"
+    }
+  }
+}
