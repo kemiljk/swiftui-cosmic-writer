@@ -11,10 +11,12 @@ import UniformTypeIdentifiers
 struct Cosmic_WriterDocument: FileDocument {
     var text: String
     var title: String
+    var filePath: String
 
-    init(text: String = "", title: String = "") {
+    init(text: String = "", title: String = "", filePath: String = "") {
         self.text = text
         self.title = title
+        self.filePath = filePath
     }
 
     static var readableContentTypes: [UTType] = [UTType.plainText]
@@ -30,9 +32,10 @@ struct Cosmic_WriterDocument: FileDocument {
             throw CocoaError(.fileReadCorruptFile)
         }
         
-        let regex = /\.exampletext/
+        let regex = /\.txt/
         title = titleData.replacing(regex, with: "")
         text = string
+        filePath = titleData
     }
     
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
