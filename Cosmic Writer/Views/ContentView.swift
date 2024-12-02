@@ -1,344 +1,170 @@
-//
-//  ContentView.swift
-//  Cosmic Writer
-//
-//  Created by Karl Koch on 31/01/2023.
-//
-
 import SwiftUI
+#if os(iOS)
 import UIKit
+#else
+import AppKit
+#endif
 import HighlightedTextEditor
 import MarkdownUI
+import CosmicSDK
 
 struct ContentView: View {
-    @ObservedObject var aPIViewModel = APIViewModel()
-    @ObservedObject var viewModel = OpenAIViewModel()
+    @Binding var document: Cosmic_WriterDocument
+    
+    var body: some View {
+        #if os(iOS)
+        iOSContentView(document: $document)
+        #else
+        MacContentView(document: $document)
+        #endif
+    }
+}
+
+#if os(iOS)
+@MainActor
+struct iOSContentView: View {
+    @Binding var document: Cosmic_WriterDocument
     @AppStorage("bucketName") var BUCKET = ""
     @AppStorage("readKey") var READ_KEY = ""
     @AppStorage("writeKey") var WRITE_KEY = ""
-    @Binding var document: Cosmic_WriterDocument
     @State private var openSettings: Bool = false
     @State private var openPreview: Bool = false
-    @State private var addTag: Bool = false
-    @State private var snippet = ""
-    @State private var tag = "design"
-    @State private var editTitle: Bool = false
-    @State private var title: String = ""
+    @State private var tag = PostTag.design.rawValue
     @State private var focusMode: Bool = true
     @State private var submitSuccessful: Bool = false
     @State private var cursorPosition: Int = 0
     @State private var selectionLength: Int = 0
-    @State private var promptText: String = ""
-    @State private var result: String = ""
-    @State private var selection: UITextRange?
     @State private var selectedText: String = ""
-    @State private var fullPrompt: String = ""
-    @State private var close: Bool = true
-    @State private var newChat: Bool = false
-    @FocusState private var textFieldIsFocused: Bool
+    @State private var textView: UITextView? = nil
     
-#if os(iOS)
-    var device = UIDevice.current.userInterfaceIdiom
+    let device = UIDevice.current.userInterfaceIdiom
     let modal = UIImpactFeedbackGenerator(style: .medium)
     let success = UIImpactFeedbackGenerator(style: .heavy)
-#endif
     
     var body: some View {
         VStack(spacing: 0) {
-            if device == .mac || device == .pad {
-                ZStack(alignment: .bottomTrailing) {
-                    HStack(spacing: 16) {
-                        HighlightedTextEditor(text: $document.text, highlightRules: .markdown)
-                            .onSelectionChange { (range: NSRange) in
-                                self.cursorPosition = range.location
-                                self.selectionLength = range.length
-                            }
-                            .introspect { editor in
-                                editor.textView.backgroundColor = UIColor.init(named: "bg")
-                                editor.textView.textContainerInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
-                            }
-                        .frame(maxWidth: .infinity)
-                        if focusMode == false {
-                            Rectangle()
-                                .frame(maxWidth: 1, maxHeight: .infinity)
-                                .foregroundColor(.secondary).opacity(0.1)
-                            ScrollView {
-                                Markdown {
-                                    document.text
-                                }
-                                .markdownTextStyle(\.code) {
-                                    FontFamilyVariant(.monospaced)
-                                    ForegroundColor(.purple)
-                                    BackgroundColor(.purple.opacity(0.25))
-                                }
-                                .padding(.top, 24)
-                                .padding(.horizontal, 16)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+            if device == .pad {
+                HStack(spacing: 16) {
+                    EditorView(
+                        document: $document,
+                        cursorPosition: $cursorPosition,
+                        selectionLength: $selectionLength,
+                        selectedText: $selectedText,
+                        textView: $textView,
+                        onFormat: { format in
+                            applyMarkdownFormatting(format)
                         }
-                    }
-                    VStack(alignment: .leading) {
-                        if viewModel.isLoading {
-                            ThinkingView()
-                                .padding([.top, .horizontal])
-                        }
+                    )
+                    if !focusMode {
+                        Divider()
+                        PreviewView(document: document)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }  else {
-                ZStack(alignment: .bottom) {
-                    HighlightedTextEditor(text: $document.text, highlightRules: .markdown)
-                        .onSelectionChange { (range: NSRange) in
-                            cursorPosition = range.location
-                            selectionLength = range.length
-                        }
-                        .introspect { editor in
-                            editor.textView.backgroundColor = UIColor.init(named: "bg")
-                            editor.textView.textContainerInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
-                        }
-                        .contextMenu {
-                            Button {
-                                replace()
-                            } label: {
-                                Text("Replace")
-                            }
-                            Button {
-                                expand()
-                            } label: {
-                                Text("Expand")
-                            }
-                        }
-                    VStack(alignment: .center) {
-                        if viewModel.isLoading {
-                            ThinkingView()
-                                .padding([.top, .horizontal])
-                        }
+            } else {
+                EditorView(
+                    document: $document,
+                    cursorPosition: $cursorPosition,
+                    selectionLength: $selectionLength,
+                    selectedText: $selectedText,
+                    textView: $textView,
+                    onFormat: { format in
+                        applyMarkdownFormatting(format)
                     }
-                }
+                )
             }
         }
-        .navigationTitle($document.title)
+        .navigationTitle(document.title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarRole(.editor)
-#if os(iOS)
         .toolbar {
-            if device == .mac {
-                ToolbarItem(placement: .bottomBar) {
-                    HStack(spacing: 8) {
+            // iPad toolbar
+            if device == .pad {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack {
+                        Menu {
+                            Button { tag = "design" } label: { Text("Design") }
+                            Button { tag = "development" } label: { Text("Development") }
+                            Button { tag = "opinion" } label: { Text("Opinion") }
+                            Button { tag = "journal" } label: { Text("Journal") }
+                        } label: {
+                            Image(systemName: "tag")
+                        }
+                        
                         Button {
-                            self.openSettings = true
-                            self.modal.impactOccurred()
+                            withAnimation {
+                                focusMode.toggle()
+                            }
+                            modal.impactOccurred()
+                        } label: {
+                            Image(systemName: "eye")
+                        }
+                        
+                        Button {
+                            openSettings = true
+                            modal.impactOccurred()
                         } label: {
                             Image(systemName: "gearshape")
-                                .symbolVariant(.fill)
                         }
-                        .tint(Color("grey-500"))
-                        .buttonStyle(.borderless)
-                        Button {
-                            withAnimation {
-                                self.focusMode.toggle()
-                            }
-                        } label: {
-                            Image(systemName: "eye.fill")
-                        }
-                        .keyboardShortcut("f")
-                        .tint(Color("grey-500"))
-                        .buttonStyle(.borderless)
-                        Spacer()
-                        Button {
-                            replace()
-                        } label: {
-                            Text("Replace")
-                        }
-                        .keyboardShortcut("§", modifiers: .command)
-                        Button {
-                            expand()
-                        } label: {
-                            Text("Expand")
-                        }
-                        .keyboardShortcut("§", modifiers: [.command, .shift])
                     }
-                    .frame(maxWidth: .infinity)
+                }
+                
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        uploadPost()
+                        modal.impactOccurred(intensity: 1.0)
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                    }
                 }
             }
-            if device == .phone || device == .pad {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        self.openSettings = true
-                        self.modal.impactOccurred()
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .symbolVariant(.fill)
-                    }
-                    .tint(Color("grey-500"))
-                }
-                ToolbarItem(placement: .navigationBarLeading) {
-                    if device == .pad {
-                        Button {
-                            withAnimation {
-                                self.focusMode.toggle()
-                            }
-                        } label: {
-                            Image(systemName: "eye.fill")
-                        }
-                        .keyboardShortcut("f")
-                        .tint(Color("grey-500"))
-                    } else {
-                        Button {
-                            self.openPreview = true
-                            self.modal.impactOccurred()
-                        } label: {
-                            Image(systemName: "eye.fill")
-                        }
-                        .tint(Color("grey-500"))
-                    }
-                }
+            
+            // iPhone toolbar
+            if device == .phone {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
-                        Button {
-                            document.text.insert(contentsOf: "#", at: document.text.index(document.text.startIndex, offsetBy: cursorPosition))
+                        Menu {
+                            ForEach(PostTag.allCases, id: \.self) { postTag in
+                                Button {
+                                    tag = postTag.rawValue
+                                } label: {
+                                    Text(postTag.title)
+                                }
+                            }
                         } label: {
-                            Label("Heading", systemImage: "number")
+                            Label("Tag", systemImage: "tag")
                         }
-                        .frame(width: 16, height: 16)
-                        .font(.caption)
-                        .padding(6)
-                        .background(Color("grey-50"))
-                        .cornerRadius(4)
-                        .foregroundColor(.primary)
-                        Button {
-                            document.text.insert(contentsOf: "![]()", at: document.text.index(document.text.startIndex, offsetBy: cursorPosition))
-                            getAndSetCursorPosition(position: cursorPosition, length: selectionLength, characterLength: 5)
-                        } label: {
-                            Label("Image", systemImage: "photo")
-                        }
-                        .frame(width: 16, height: 16)
-                        .font(.caption)
-                        .padding(6)
-                        .background(Color("grey-50"))
-                        .cornerRadius(4)
-                        .foregroundColor(.primary)
-                        Button {
-                            document.text.insert(contentsOf: "[]()", at: document.text.index(document.text.startIndex, offsetBy: cursorPosition))
-                        } label: {
-                            Label("Link", systemImage: "link")
-                        }
-                        .frame(width: 16, height: 16)
-                        .font(.caption)
-                        .padding(6)
-                        .background(Color("grey-50"))
-                        .cornerRadius(4)
-                        .foregroundColor(.primary)
-                        Button {
-                            document.text.insert(contentsOf: "_", at: document.text.index(document.text.startIndex, offsetBy: cursorPosition))
-                        } label: {
-                            Label("Italic", systemImage: "italic")
-                        }
-                        .frame(width: 16, height: 16)
-                        .font(.caption)
-                        .padding(6)
-                        .background(Color("grey-50"))
-                        .cornerRadius(4)
-                        .foregroundColor(.primary)
-                        Button {
-                            document.text.insert(contentsOf: "**", at: document.text.index(document.text.startIndex, offsetBy: cursorPosition))
-                        } label: {
-                            Label("Bold", systemImage: "bold")
-                        }
-                        .frame(width: 16, height: 16)
-                        .font(.caption)
-                        .padding(6)
-                        .background(Color("grey-50"))
-                        .cornerRadius(4)
-                        .foregroundColor(.primary)
-                        Button {
-                            document.text.insert(contentsOf: "`", at: document.text.index(document.text.startIndex, offsetBy: cursorPosition))
-                        } label: {
-                            Label("Code", systemImage: "terminal")
-                        }
-                        .frame(width: 16, height: 16)
-                        .font(.caption)
-                        .padding(6)
-                        .background(Color("grey-50"))
-                        .cornerRadius(4)
-                        .foregroundColor(.primary)
-                        Button {
-                            document.text.insert(contentsOf: "```", at: document.text.index(document.text.startIndex, offsetBy: cursorPosition))
-                        } label: {
-                            Label("Code Block", systemImage: "curlybraces.square")
-                        }
-                        .frame(width: 16, height: 16)
-                        .font(.caption)
-                        .padding(6)
-                        .background(Color("grey-50"))
-                        .cornerRadius(4)
-                        .foregroundColor(.primary)
-                    } label: {
-                        if device == .phone || device == .pad {
-                            Image(systemName: "text.insert")
-                        } else {
-                            Text("Heading")
-                        }
-                    }
-                    .tint(Color("grey-500"))
-                }
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button {
-                        self.tag = "design"
-                    } label: {
-                        Text("Design")
-                    }
-                    .tag(0)
-                    Button {
-                        self.tag = "development"
-                    } label: {
-                        Text("Development")
-                    }
-                    .tag(1)
-                    Button {
-                        self.tag = "opinion"
-                    } label: {
-                        Text("Opinion")
-                    }
-                    .tag(2)
-                    Button {
-                        self.tag = "journal"
-                    } label: {
-                        Text("Journal")
-                    }
-                    .tag(3)
-                    
-                } label: {
-                    if device == .phone || device == .pad {
-                        Image(systemName: "tag.fill")
-                    } else {
-                        Text(self.tag.firstUppercased)
                         
+                        Divider()
+                        
+                        Button {
+                            withAnimation {
+                                openPreview.toggle()
+                                modal.impactOccurred()
+                            }
+                        } label: {
+                            Label("Preview", systemImage: "eye")
+                        }
+                        
+                        Button {
+                            openSettings = true
+                            modal.impactOccurred()
+                        } label: {
+                            Label("Settings", systemImage: "gearshape")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
-                .tint(Color("grey-500"))
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    withAnimation {
-                        self.hideKeyboard()
-                        self.success.impactOccurred()
-                        self.snippet = trimString(string: document.text)
+                
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
                         uploadPost()
-                        print("Draft request sent")
+                        modal.impactOccurred(intensity: 1.0)
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
                     }
-                } label: {
-                    Label("Post", systemImage: "arrow.up.circle.fill")
                 }
-                .buttonStyle(.borderless)
-                .disabled(document.text.isEmpty && tag.isEmpty)
-                .tint(.accentColor)
-                .keyboardShortcut(.defaultAction)
             }
         }
-#endif
         .background(Color("bg"))
         .alert(isPresented: $submitSuccessful) {
             Alert(
@@ -348,7 +174,7 @@ struct ContentView: View {
             )
         }
         .sheet(isPresented: $openPreview) {
-            preview
+            PreviewView(document: document)
                 .padding(.top, 24)
         }
         .sheet(isPresented: $openSettings) {
@@ -357,131 +183,402 @@ struct ContentView: View {
         }
     }
     
-    var preview: some View {
-        ScrollView {
-            VStack(alignment: .leading) {
-                Text(document.title)
-                    .font(.largeTitle).bold()
-                    .padding(.bottom, 8)
-                Markdown{
-                    document.text
-                }
-                .markdownTextStyle(\.code) {
-                    FontFamilyVariant(.monospaced)
-                    FontSize(.em(0.85))
-                    ForegroundColor(.purple)
-                    BackgroundColor(.purple.opacity(0.15))
+    func uploadPost() {
+        let cosmic = CosmicSDKSwift(.createBucketClient(bucketSlug: BUCKET, readKey: READ_KEY, writeKey: WRITE_KEY))
+        
+        cosmic.insertOne(type: "writings", title: document.title, metadata: [
+            "tag": tag,
+            "content": document.text,
+        ], status: .draft) { results in
+            Task { @MainActor in
+                switch results {
+                case .success(_):
+                    self.submitSuccessful = true
+                case .failure(let error):
+                    print(error)
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .navigationTitle("Preview")
     }
+
     
-    func getAndSetCursorPosition(position: Int, length: Int, characterLength: Int) {
-        var range: NSRange?
-        range?.location = position
-        range?.length = length
-        print(position, length)
-        
-        self.cursorPosition = position + characterLength
-        range?.length = position + characterLength
-        self.selectionLength = length
-        print(cursorPosition, selectionLength)
-    }
-    
-    func trimString(string: String) -> String {
-        if string.count > 100 {
-            return String(string.prefix(100))
-        } else {
-            return string
+    func setCursorPosition(to position: Int) {
+        DispatchQueue.main.async {
+            guard let textView = self.textView else {
+                print("TextView not found")
+                return
+            }
+            #if os(iOS)
+            if let newPosition = textView.position(from: textView.beginningOfDocument, offset: position) {
+                textView.selectedTextRange = textView.textRange(from: newPosition, to: newPosition)
+            }
+            #endif
         }
     }
     
-    func uploadPost() {
-        let api = "https://api.cosmicjs.com/v3/buckets/\(BUCKET)/objects"
-        guard let url = URL(string: api) else { return }
-        
-        let body =
-        [
-            "type": "writings",
-            "title": document.title,
-            "metadata": [
-                "snippet": snippet,
-                "tag": tag,
-                "content": document.text,
-            ],
-            "status": "draft",
-        ] as [String : Any]
-        
-        let jsonData = try? JSONSerialization.data(withJSONObject: body)
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(WRITE_KEY)", forHTTPHeaderField: "Authorization")
-        request.setValue("\(String(describing: jsonData?.count))", forHTTPHeaderField: "Content-Length")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = jsonData
-        
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            print("-----> data: \(String(describing: data))")
-            print("-----> error: \(String(describing: error))")
+    func applyMarkdownFormatting(_ format: MarkdownFormatting) {
+        MarkdownFormatter.shared.applyMarkdownFormatting(
+            format: format,
+            document: &document,
+            selectedText: selectedText,
+            cursorPosition: cursorPosition,
+            textView: textView
+        ) { newPosition in
+            cursorPosition = newPosition
+            setCursorPosition(to: newPosition)
+        }
+    }
+}
+#endif
+
+#if os(macOS)
+@MainActor
+struct MacContentView: View {
+    @Binding var document: Cosmic_WriterDocument
+    @AppStorage("bucketName") var BUCKET = ""
+    @AppStorage("readKey") var READ_KEY = ""
+    @AppStorage("writeKey") var WRITE_KEY = ""
+    @State private var openSettings: Bool = false
+    @State private var tag = PostTag.design.rawValue
+    @State private var focusMode: Bool = true
+    @State private var submitSuccessful: Bool = false
+    @State private var cursorPosition: Int = 0
+    @State private var selectionLength: Int = 0
+    @State private var selectedText: String = ""
+    @State private var textView: NSTextView? = nil
+    @State private var observers: [NSObjectProtocol] = []
+    
+    var body: some View {
+        HSplitView {
+            // Editor pane
+            VStack {
+                HighlightedTextEditor(text: $document.text, highlightRules: .markdown)
+                    .onSelectionChange { (range: NSRange) in
+                        cursorPosition = range.location
+                        selectionLength = range.length
+                    }
+                    .introspect { editor in
+                        DispatchQueue.main.async {
+                            textView = editor.textView
+                            
+                            if let selectedRange = textView?.selectedRange() {
+                                selectedText = textView?.string.substring(with: selectedRange) ?? ""
+                            }
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .background(.background)
+            .frame(minWidth: 400)
             
-            guard let data = data, error == nil else {
-                print(error?.localizedDescription ?? "No data")
+            // Preview pane
+            if !focusMode {
+                PreviewView(document: document)
+                    .frame(minWidth: 400)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    ForEach(PostTag.allCases, id: \.self) { postTag in
+                        Button {
+                            tag = postTag.rawValue
+                        } label: {
+                            Text(postTag.title)
+                        }
+                    }
+                } label: {
+                    Text(tag.capitalized)
+                }
+            }
+            
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    withAnimation {
+                        focusMode.toggle()
+                    }
+                } label: {
+                    Image(systemName: "eye")
+                }
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    uploadPost()
+                } label: {
+                    Label("Upload", systemImage: "arrow.up.circle")
+                }
+                .tint(.accentColor)
+            }
+            
+            
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    openSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+            }
+        }
+        .onAppear {
+            setupNotificationObservers()
+        }
+        .onDisappear {
+            observers.forEach { NotificationCenter.default.removeObserver($0) }
+        }
+        .navigationTitle(document.title)
+        .alert(isPresented: $submitSuccessful) {
+            Alert(
+                title: Text("Submitted!"),
+                message: Text("Submitted draft post successfully"),
+                dismissButton: .default(Text("Got it!"))
+            )
+        }
+        .sheet(isPresented: $openSettings) {
+            SettingsView()
+                .frame(width: 400, height: 300)
+        }
+    }
+    
+    private func updateCursorPosition() {
+       guard let textView = textView else { return }
+       textView.selectedRange = NSRange(location: cursorPosition, length: 0)
+   }
+    
+    @MainActor
+    func uploadPost() {
+        let cosmic = CosmicSDKSwift(.createBucketClient(bucketSlug: BUCKET, readKey: READ_KEY, writeKey: WRITE_KEY))
+        
+        cosmic.insertOne(type: "writings", title: document.title, metadata: [
+            "content": document.text,
+            "tag": tag,
+        ], status: .draft) { results in
+            Task { @MainActor in
+                switch results {
+                case .success(_):
+                    self.submitSuccessful = true
+                    print("Uploaded \(self.document.title)")
+                case .failure(let error):
+                    print(error)
+                }
+            }
+        }
+    }
+    
+    private func setupNotificationObservers() {
+        // Create a reference to self that can be captured
+        let view = self
+        
+        // Store observers so we can remove them later
+        observers = [
+            NotificationCenter.default.addObserver(
+                forName: .applyItalic,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    view.applyMarkdownFormatting(.italic)
+                }
+            },
+            
+            NotificationCenter.default.addObserver(
+                forName: .applyBold,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    view.applyMarkdownFormatting(.bold)
+                }
+            },
+            
+            NotificationCenter.default.addObserver(
+                forName: .applyStrikethrough,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    view.applyMarkdownFormatting(.strikethrough)
+                }
+            },
+            
+            NotificationCenter.default.addObserver(
+                forName: .applyLink,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    view.handleLinkFormatting()
+                }
+            },
+            
+            NotificationCenter.default.addObserver(
+                forName: .openSettings,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    openSettings = true
+                }
+            },
+            
+            NotificationCenter.default.addObserver(
+                forName: .showPreview,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    focusMode.toggle()
+                }
+            }
+        ]
+    }
+}
+
+extension MacContentView {
+    func applyMarkdownFormatting(_ format: MarkdownFormatting) {
+        guard let textView = textView else {
+            return
+        }
+        
+        // Print current selection info
+        let selectedRange = textView.selectedRange()
+        
+        if selectedRange.length > 0 {
+            // There is selected text
+            guard let selectedContent = textView.string.substring(with: selectedRange) else {
                 return
             }
             
-            let responseJSON = try? JSONSerialization.jsonObject(with: data, options: [])
-            print("-----1> responseJSON: \(String(describing: responseJSON))")
-            if let responseJSON = responseJSON as? [String: Any] {
-                print("-----2> responseJSON: \(responseJSON)")
-                self.submitSuccessful = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-                    self.submitSuccessful = false
-                }
+            let formattedText: String
+            switch format {
+            case .italic:
+                formattedText = "_\(selectedContent)_"
+            case .bold:
+                formattedText = "**\(selectedContent)**"
+            case .strikethrough:
+                formattedText = "~~\(selectedContent)~~"
+            default:
+                return
             }
+            
+            textView.replaceCharacters(in: selectedRange, with: formattedText)
+            
+            document.text = textView.string
+        } else {
+            // No selection, insert at cursor
+            let insertion: String
+            let cursorOffset: Int
+            
+            switch format {
+            case .italic:
+                insertion = "__"
+                cursorOffset = 1
+            case .bold:
+                insertion = "****"
+                cursorOffset = 2
+            case .strikethrough:
+                insertion = "~~~~"
+                cursorOffset = 2
+            default:
+                return
+            }
+            
+            let insertionRange = NSRange(location: selectedRange.location, length: 0)
+            textView.shouldChangeText(in: insertionRange, replacementString: insertion)
+            textView.replaceCharacters(in: insertionRange, with: insertion)
+            textView.didChangeText()
+            
+            // Update cursor position
+            let newPosition = selectedRange.location + cursorOffset
+            textView.setSelectedRange(NSRange(location: newPosition, length: 0))
+            
+            // Update the document text
+            document.text = textView.string
         }
-        task.resume()
     }
     
-    private func replace() {
-        viewModel.setup()
-        withAnimation {
-            self.promptText = "You are a skilled writing bot and your job is to read the provided content and expand on what's provided to create a well written set of prose in the style of a somewhat casual blog post by an author who's knowledgable. Improve on this: \n\n"
-            self.fullPrompt = promptText + "\n\n" + document.title + "\n\n" + document.text
-            self.promptText = ""
-            viewModel.send(system: aPIViewModel.AssistantType, text: fullPrompt, maxTokens: 2049) { gpt in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    self.document.text = gpt.trimmingCharacters(in: .whitespacesAndNewlines)
-                }
+    func handleLinkFormatting() {
+        guard let textView = textView else { return }
+        
+        // Check clipboard for URL
+        let pasteboard = NSPasteboard.general
+        var clipboardUrl: String? = nil
+        
+        // Try to get URL from clipboard
+        if let clipboardString = pasteboard.string(forType: .string) {
+            // Basic URL validation
+            if clipboardString.hasPrefix("http://") ||
+               clipboardString.hasPrefix("https://") ||
+               clipboardString.hasPrefix("www.") {
+                clipboardUrl = clipboardString
             }
         }
-    }
-    
-    private func expand() {
-        viewModel.setup()
-        withAnimation {
-            self.promptText = "You are a skilled writing bot and your job is to read the provided content and provide the next paragraph to continue the well written set of prose in the style of a somewhat casual blog post by an author who's knowledgable. Add the next paragraph: \n\n"
-            self.fullPrompt = promptText + "\n\n" + document.title + "\n\n" + document.text
-            self.promptText = ""
-            viewModel.send(system: aPIViewModel.AssistantType, text: fullPrompt, maxTokens: 2049) { gpt in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    self.document.text = document.text + gpt.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        let selectedRange = textView.selectedRange()
+        if selectedRange.length > 0 {
+            // There is selected text
+            if let selectedContent = textView.string.substring(with: selectedRange) {
+                // Store selected text for potential later use
+                let tempSelected = selectedContent
+                
+                let formattedText: String
+                if let url = clipboardUrl {
+                    formattedText = "[\(selectedContent)](\(url))"
+                } else {
+                    // No URL in clipboard, save selected text and leave parentheses empty
+                    pasteboard.clearContents()
+                    pasteboard.setString(selectedContent, forType: .string)
+                    formattedText = "[\(selectedContent)]()"
                 }
+                
+                textView.shouldChangeText(in: selectedRange, replacementString: formattedText)
+                textView.replaceCharacters(in: selectedRange, with: formattedText)
+                textView.didChangeText()
+                
+                // Position cursor appropriately
+                let newPosition: Int
+                if clipboardUrl != nil {
+                    // Place cursor at end if we inserted a URL
+                    newPosition = selectedRange.location + formattedText.count
+                } else {
+                    // Place cursor between parentheses if no URL
+                    newPosition = selectedRange.location + tempSelected.count + 3
+                }
+                textView.setSelectedRange(NSRange(location: newPosition, length: 0))
+                
+                // Update the document text
+                document.text = textView.string
             }
+        } else {
+            // No selection, insert empty link
+            let insertion: String
+            if let url = clipboardUrl {
+                insertion = "[]("+url+")"
+            } else {
+                insertion = "[]()"
+            }
+            let insertionRange = NSRange(location: selectedRange.location, length: 0)
+            
+            textView.shouldChangeText(in: insertionRange, replacementString: insertion)
+            textView.replaceCharacters(in: insertionRange, with: insertion)
+            textView.didChangeText()
+            
+            // Position cursor between brackets if no URL, or at end if URL was inserted
+            let newPosition = selectedRange.location + (clipboardUrl == nil ? 1 : insertion.count)
+            textView.setSelectedRange(NSRange(location: newPosition, length: 0))
+            
+            // Update the document text
+            document.text = textView.string
         }
     }
 }
 
-extension UIApplication {
-    func endEditing() {
-        sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+extension String {
+    func substring(with nsrange: NSRange) -> String? {
+        guard let range = Range(nsrange, in: self) else { return nil }
+        return String(self[range])
     }
 }
 
-extension StringProtocol {
-    var firstUppercased: String { prefix(1).uppercased() + dropFirst() }
-    var firstCapitalized: String { prefix(1).capitalized + dropFirst() }
-}
+#endif

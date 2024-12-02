@@ -7,28 +7,22 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		CDEABDE32A3F4F020047FE69 /* OpenAIViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDEABDE22A3F4F020047FE69 /* OpenAIViewModel.swift */; };
-		CDEABDE62A3F4FD40047FE69 /* OpenAISwift in Frameworks */ = {isa = PBXBuildFile; productRef = CDEABDE52A3F4FD40047FE69 /* OpenAISwift */; };
-		CDEABDE82A3F50D10047FE69 /* APIViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDEABDE72A3F50D10047FE69 /* APIViewModel.swift */; };
-		CDEABDED2A3F533D0047FE69 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDEABDEC2A3F533D0047FE69 /* PersistenceController.swift */; };
-		CDEABDEF2A3F54810047FE69 /* ThinkingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDEABDEE2A3F54810047FE69 /* ThinkingView.swift */; };
 		CF1C8F342989183D00CEF906 /* Cosmic_WriterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1C8F332989183D00CEF906 /* Cosmic_WriterApp.swift */; };
 		CF1C8F362989183D00CEF906 /* Cosmic_WriterDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1C8F352989183D00CEF906 /* Cosmic_WriterDocument.swift */; };
 		CF1C8F382989183D00CEF906 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1C8F372989183D00CEF906 /* ContentView.swift */; };
 		CF1C8F3A2989183F00CEF906 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF1C8F392989183F00CEF906 /* Assets.xcassets */; };
 		CF1C8F3F2989183F00CEF906 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */; };
 		CF70DD64298BBAD900235897 /* HighlightedTextEditor in Frameworks */ = {isa = PBXBuildFile; productRef = CF70DD63298BBAD900235897 /* HighlightedTextEditor */; };
-		CF98143D29894B4700E64BEB /* RoundedCornerShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF98143C29894B4700E64BEB /* RoundedCornerShape.swift */; };
-		CF98143F29894B5E00E64BEB /* HideKeyboardExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF98143E29894B5E00E64BEB /* HideKeyboardExtension.swift */; };
+		CF84EC8D2CFE45D60081E019 /* Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC8C2CFE45D40081E019 /* Helpers.swift */; };
+		CF84EC912CFE46210081E019 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC902CFE461F0081E019 /* PreviewView.swift */; };
+		CF84EC932CFE468D0081E019 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC922CFE468B0081E019 /* EditorView.swift */; };
+		CF84EC952CFE4A9A0081E019 /* MarkdownFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC942CFE4A980081E019 /* MarkdownFormatter.swift */; };
 		CF981441298955E000E64BEB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF981440298955E000E64BEB /* SettingsView.swift */; };
+		CFB91BE62AEEA35100DAD153 /* CosmicSDK in Frameworks */ = {isa = PBXBuildFile; productRef = CFB91BE52AEEA35100DAD153 /* CosmicSDK */; };
 		CFE33675298AD6DB00980014 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = CFE33674298AD6DB00980014 /* MarkdownUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		CDEABDE22A3F4F020047FE69 /* OpenAIViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIViewModel.swift; sourceTree = "<group>"; };
-		CDEABDE72A3F50D10047FE69 /* APIViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIViewModel.swift; sourceTree = "<group>"; };
-		CDEABDEC2A3F533D0047FE69 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
-		CDEABDEE2A3F54810047FE69 /* ThinkingView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ThinkingView.swift; sourceTree = "<group>"; };
 		CF1C8F302989183D00CEF906 /* Cosmic Writer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cosmic Writer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF1C8F332989183D00CEF906 /* Cosmic_WriterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cosmic_WriterApp.swift; sourceTree = "<group>"; };
 		CF1C8F352989183D00CEF906 /* Cosmic_WriterDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cosmic_WriterDocument.swift; sourceTree = "<group>"; };
@@ -37,8 +31,10 @@
 		CF1C8F3B2989183F00CEF906 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CF1C8F3C2989183F00CEF906 /* Cosmic_Writer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Cosmic_Writer.entitlements; sourceTree = "<group>"; };
 		CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		CF98143C29894B4700E64BEB /* RoundedCornerShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoundedCornerShape.swift; sourceTree = "<group>"; };
-		CF98143E29894B5E00E64BEB /* HideKeyboardExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HideKeyboardExtension.swift; sourceTree = "<group>"; };
+		CF84EC8C2CFE45D40081E019 /* Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Helpers.swift; sourceTree = "<group>"; };
+		CF84EC902CFE461F0081E019 /* PreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewView.swift; sourceTree = "<group>"; };
+		CF84EC922CFE468B0081E019 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
+		CF84EC942CFE4A980081E019 /* MarkdownFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownFormatter.swift; sourceTree = "<group>"; };
 		CF981440298955E000E64BEB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -48,7 +44,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CF70DD64298BBAD900235897 /* HighlightedTextEditor in Frameworks */,
-				CDEABDE62A3F4FD40047FE69 /* OpenAISwift in Frameworks */,
+				CFB91BE62AEEA35100DAD153 /* CosmicSDK in Frameworks */,
 				CFE33675298AD6DB00980014 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -56,16 +52,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		CDEABDE12A3F4EF10047FE69 /* Model */ = {
-			isa = PBXGroup;
-			children = (
-				CDEABDE22A3F4F020047FE69 /* OpenAIViewModel.swift */,
-				CDEABDE72A3F50D10047FE69 /* APIViewModel.swift */,
-				CDEABDEC2A3F533D0047FE69 /* PersistenceController.swift */,
-			);
-			path = Model;
-			sourceTree = "<group>";
-		};
 		CF1C8F272989183D00CEF906 = {
 			isa = PBXGroup;
 			children = (
@@ -85,7 +71,6 @@
 		CF1C8F322989183D00CEF906 /* Cosmic Writer */ = {
 			isa = PBXGroup;
 			children = (
-				CDEABDE12A3F4EF10047FE69 /* Model */,
 				CF1C8F332989183D00CEF906 /* Cosmic_WriterApp.swift */,
 				CF1C8F352989183D00CEF906 /* Cosmic_WriterDocument.swift */,
 				CF981434298919CA00E64BEB /* Views */,
@@ -109,8 +94,10 @@
 		CF981434298919CA00E64BEB /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				CF84EC942CFE4A980081E019 /* MarkdownFormatter.swift */,
+				CF84EC922CFE468B0081E019 /* EditorView.swift */,
+				CF84EC902CFE461F0081E019 /* PreviewView.swift */,
 				CF1C8F372989183D00CEF906 /* ContentView.swift */,
-				CDEABDEE2A3F54810047FE69 /* ThinkingView.swift */,
 				CF981440298955E000E64BEB /* SettingsView.swift */,
 			);
 			path = Views;
@@ -119,8 +106,7 @@
 		CF98143B29894B3500E64BEB /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
-				CF98143C29894B4700E64BEB /* RoundedCornerShape.swift */,
-				CF98143E29894B5E00E64BEB /* HideKeyboardExtension.swift */,
+				CF84EC8C2CFE45D40081E019 /* Helpers.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -144,7 +130,7 @@
 			packageProductDependencies = (
 				CFE33674298AD6DB00980014 /* MarkdownUI */,
 				CF70DD63298BBAD900235897 /* HighlightedTextEditor */,
-				CDEABDE52A3F4FD40047FE69 /* OpenAISwift */,
+				CFB91BE52AEEA35100DAD153 /* CosmicSDK */,
 			);
 			productName = "Cosmic Writer";
 			productReference = CF1C8F302989183D00CEF906 /* Cosmic Writer.app */;
@@ -158,7 +144,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1420;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					CF1C8F2F2989183D00CEF906 = {
 						CreatedOnToolsVersion = 14.2;
@@ -177,7 +163,7 @@
 			packageReferences = (
 				CFE33673298AD6DB00980014 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				CF70DD62298BBAD900235897 /* XCRemoteSwiftPackageReference "HighlightedTextEditor" */,
-				CDEABDE42A3F4FD40047FE69 /* XCRemoteSwiftPackageReference "OpenAISwift" */,
+				CFB91BE42AEEA35100DAD153 /* XCRemoteSwiftPackageReference "CosmicSDKSwift" */,
 			);
 			productRefGroup = CF1C8F312989183D00CEF906 /* Products */;
 			projectDirPath = "";
@@ -205,16 +191,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CDEABDE32A3F4F020047FE69 /* OpenAIViewModel.swift in Sources */,
+				CF84EC932CFE468D0081E019 /* EditorView.swift in Sources */,
 				CF1C8F342989183D00CEF906 /* Cosmic_WriterApp.swift in Sources */,
+				CF84EC912CFE46210081E019 /* PreviewView.swift in Sources */,
+				CF84EC8D2CFE45D60081E019 /* Helpers.swift in Sources */,
 				CF1C8F362989183D00CEF906 /* Cosmic_WriterDocument.swift in Sources */,
-				CDEABDE82A3F50D10047FE69 /* APIViewModel.swift in Sources */,
-				CF98143F29894B5E00E64BEB /* HideKeyboardExtension.swift in Sources */,
 				CF981441298955E000E64BEB /* SettingsView.swift in Sources */,
-				CF98143D29894B4700E64BEB /* RoundedCornerShape.swift in Sources */,
 				CF1C8F382989183D00CEF906 /* ContentView.swift in Sources */,
-				CDEABDEF2A3F54810047FE69 /* ThinkingView.swift in Sources */,
-				CDEABDED2A3F533D0047FE69 /* PersistenceController.swift in Sources */,
+				CF84EC952CFE4A9A0081E019 /* MarkdownFormatter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -225,6 +209,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -258,6 +243,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -284,6 +270,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -317,6 +304,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -337,6 +325,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = "Cosmic Writer/Cosmic_Writer.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -361,16 +350,17 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphonesimulator*]" = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 13.1;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kejk.Cosmic-Writer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -383,6 +373,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = "Cosmic Writer/Cosmic_Writer.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -407,16 +398,17 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphonesimulator*]" = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 13.1;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kejk.Cosmic-Writer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -448,20 +440,20 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		CDEABDE42A3F4FD40047FE69 /* XCRemoteSwiftPackageReference "OpenAISwift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/adamrushy/OpenAISwift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
 		CF70DD62298BBAD900235897 /* XCRemoteSwiftPackageReference "HighlightedTextEditor" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/kyle-n/HighlightedTextEditor";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.0.0;
+			};
+		};
+		CFB91BE42AEEA35100DAD153 /* XCRemoteSwiftPackageReference "CosmicSDKSwift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/cosmicjs/CosmicSDKSwift";
+			requirement = {
+				branch = main;
+				kind = branch;
 			};
 		};
 		CFE33673298AD6DB00980014 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
@@ -475,15 +467,15 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		CDEABDE52A3F4FD40047FE69 /* OpenAISwift */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = CDEABDE42A3F4FD40047FE69 /* XCRemoteSwiftPackageReference "OpenAISwift" */;
-			productName = OpenAISwift;
-		};
 		CF70DD63298BBAD900235897 /* HighlightedTextEditor */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = CF70DD62298BBAD900235897 /* XCRemoteSwiftPackageReference "HighlightedTextEditor" */;
 			productName = HighlightedTextEditor;
+		};
+		CFB91BE52AEEA35100DAD153 /* CosmicSDK */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CFB91BE42AEEA35100DAD153 /* XCRemoteSwiftPackageReference "CosmicSDKSwift" */;
+			productName = CosmicSDK;
 		};
 		CFE33674298AD6DB00980014 /* MarkdownUI */ = {
 			isa = XCSwiftPackageProductDependency;
