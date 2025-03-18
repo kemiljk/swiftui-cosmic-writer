@@ -34,26 +34,26 @@ enum MarkdownFormatting: CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .heading: return "Heading"
-        case .image: return "Image"
-        case .link: return "Link"
-        case .italic: return "Italic"
         case .bold: return "Bold"
+        case .italic: return "Italic"
+        case .strikethrough: return "Strikethrough"
+        case .link: return "Link"
+        case .image: return "Image"
         case .code: return "Code"
         case .codeBlock: return "Code Block"
-        case .strikethrough: return "Strikethrough"
         }
     }
     
     var icon: String {
         switch self {
         case .heading: return "number"
-        case .image: return "photo"
-        case .link: return "link"
-        case .italic: return "italic"
         case .bold: return "bold"
+        case .italic: return "italic"
+        case .strikethrough: return "strikethrough"
+        case .link: return "link"
+        case .image: return "photo"
         case .code: return "terminal"
         case .codeBlock: return "curlybraces.square"
-        case .strikethrough: return "strikethrough"
         }
     }
 }

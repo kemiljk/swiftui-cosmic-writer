@@ -31,15 +31,22 @@ struct iOSContentView: View {
     @State private var openPreview: Bool = false
     @State private var tag = PostTag.design.rawValue
     @State private var focusMode: Bool = true
-    @State private var submitSuccessful: Bool = false
     @State private var cursorPosition: Int = 0
     @State private var selectionLength: Int = 0
     @State private var selectedText: String = ""
     @State private var textView: UITextView? = nil
+    @State private var isSending: Bool = false
+    @State private var showToast: Bool = false
+    @State private var toastOffset: CGFloat = 100
     
     let device = UIDevice.current.userInterfaceIdiom
     let modal = UIImpactFeedbackGenerator(style: .medium)
     let success = UIImpactFeedbackGenerator(style: .heavy)
+    
+    // Add this computed property to both iOSContentView and MacContentView
+    private var characterCount: Int {
+        document.text.count
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -72,13 +79,42 @@ struct iOSContentView: View {
                     }
                 )
             }
+            if showToast {
+                ToastView(message: "Post submitted")
+                    .offset(y: toastOffset)
+                    .animation(.spring(response: 0.3), value: toastOffset)
+            }
+        }
+        .onChange(of: showToast) { _, newValue in
+            if newValue {
+                withAnimation {
+                    toastOffset = -32 // Slide up to visible position
+                }
+                
+                // Automatically hide after delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    withAnimation {
+                        toastOffset = 100 // Slide back down
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showToast = false
+                    }
+                }
+            }
         }
         .navigationTitle(document.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // iPad toolbar
             if device == .pad {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                // In iOSContentView's toolbar, add this ToolbarItem before the primaryAction
+                ToolbarItem(placement: .topBarLeading) {
+                    Text("\(characterCount)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
                     HStack {
                         Menu {
                             Button { tag = "design" } label: { Text("Design") }
@@ -108,18 +144,31 @@ struct iOSContentView: View {
                 }
                 
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        uploadPost()
-                        modal.impactOccurred(intensity: 1.0)
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
+                    if isSending {
+                        ProgressView()
+                            .frame(width: 24)
+                    } else {
+                        Button {
+                            self.isSending = true
+                            uploadPost()
+                            modal.impactOccurred()
+                        } label: {
+                            Image(systemName: "arrow.up.circle.fill")
+                        }
                     }
                 }
             }
             
             // iPhone toolbar
             if device == .phone {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                // In iOSContentView's toolbar, add this ToolbarItem before the primaryAction
+                ToolbarItem(placement: .topBarLeading) {
+                    Text("\(characterCount)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Menu {
                             ForEach(PostTag.allCases, id: \.self) { postTag in
@@ -157,22 +206,20 @@ struct iOSContentView: View {
                 
                 ToolbarItem(placement: .primaryAction) {
                     Button {
+                        self.isSending = true
                         uploadPost()
-                        modal.impactOccurred(intensity: 1.0)
                     } label: {
-                        Image(systemName: "arrow.up.circle.fill")
+                        if isSending {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.up.circle.fill")
+                        }
                     }
+                    .frame(width: 24, height: 24)
                 }
             }
         }
         .background(Color("bg"))
-        .alert(isPresented: $submitSuccessful) {
-            Alert(
-                title: Text("Submitted!"),
-                message: Text("Submitted draft post successfully"),
-                dismissButton: .default(Text("Got it!"))
-            )
-        }
         .sheet(isPresented: $openPreview) {
             PreviewView(document: document)
                 .padding(.top, 24)
@@ -193,14 +240,14 @@ struct iOSContentView: View {
             Task { @MainActor in
                 switch results {
                 case .success(_):
-                    self.submitSuccessful = true
+                    self.showToast = true
+                    self.isSending = false
                 case .failure(let error):
                     print(error)
                 }
             }
         }
     }
-
     
     func setCursorPosition(to position: Int) {
         DispatchQueue.main.async {
@@ -241,12 +288,19 @@ struct MacContentView: View {
     @State private var openSettings: Bool = false
     @State private var tag = PostTag.design.rawValue
     @State private var focusMode: Bool = true
-    @State private var submitSuccessful: Bool = false
     @State private var cursorPosition: Int = 0
     @State private var selectionLength: Int = 0
     @State private var selectedText: String = ""
     @State private var textView: NSTextView? = nil
     @State private var observers: [NSObjectProtocol] = []
+    @State private var isSending: Bool = false
+    @State private var showToast: Bool = false
+    @State private var toastOffset: CGFloat = 100
+    
+    // Add this computed property to both iOSContentView and MacContentView
+    private var characterCount: Int {
+        document.text.count
+    }
     
     var body: some View {
         HSplitView {
@@ -268,6 +322,12 @@ struct MacContentView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                
+                if showToast {
+                    ToastView(message: "Post submitted")
+                        .offset(y: toastOffset)
+                        .animation(.spring(response: 0.3), value: toastOffset)
+                }
             }
             .background(.background)
             .frame(minWidth: 400)
@@ -276,9 +336,33 @@ struct MacContentView: View {
             if !focusMode {
                 PreviewView(document: document)
                     .frame(minWidth: 400)
+                    .padding()
+            }
+        }
+        .onChange(of: showToast) { _, newValue in
+            if newValue {
+                withAnimation {
+                    toastOffset = -32 // Slide up to visible position
+                }
+                
+                // Automatically hide after delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    withAnimation {
+                        toastOffset = 100 // Slide back down
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showToast = false
+                    }
+                }
             }
         }
         .toolbar {
+            // In MacContentView's toolbar, add this ToolbarItem before the primaryAction
+            ToolbarItem(placement: .automatic) {
+                Text("\(characterCount) characters")
+                    .foregroundStyle(.secondary)
+            }
+
             ToolbarItem(placement: .automatic) {
                 Menu {
                     ForEach(PostTag.allCases, id: \.self) { postTag in
@@ -305,20 +389,18 @@ struct MacContentView: View {
 
             ToolbarItem(placement: .primaryAction) {
                 Button {
+                    self.isSending = true
                     uploadPost()
                 } label: {
-                    Label("Upload", systemImage: "arrow.up.circle")
+                    if isSending {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.up.circle.fill")
+                    }
                 }
-                .tint(.accentColor)
-            }
-            
-            
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    openSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                }
+                .buttonStyle(.borderedProminent)
+                .frame(width: 24, height: 24)
             }
         }
         .onAppear {
@@ -328,13 +410,6 @@ struct MacContentView: View {
             observers.forEach { NotificationCenter.default.removeObserver($0) }
         }
         .navigationTitle(document.title)
-        .alert(isPresented: $submitSuccessful) {
-            Alert(
-                title: Text("Submitted!"),
-                message: Text("Submitted draft post successfully"),
-                dismissButton: .default(Text("Got it!"))
-            )
-        }
         .sheet(isPresented: $openSettings) {
             SettingsView()
                 .frame(width: 400, height: 300)
@@ -357,8 +432,8 @@ struct MacContentView: View {
             Task { @MainActor in
                 switch results {
                 case .success(_):
-                    self.submitSuccessful = true
-                    print("Uploaded \(self.document.title)")
+                    self.showToast = true
+                    self.isSending = false
                 case .failure(let error):
                     print(error)
                 }
@@ -441,7 +516,6 @@ extension MacContentView {
             return
         }
         
-        // Print current selection info
         let selectedRange = textView.selectedRange()
         
         if selectedRange.length > 0 {
@@ -453,18 +527,36 @@ extension MacContentView {
             let formattedText: String
             switch format {
             case .italic:
-                formattedText = "_\(selectedContent)_"
+                if selectedContent.hasPrefix("_") && selectedContent.hasSuffix("_") {
+                    // Remove italic formatting
+                    formattedText = String(selectedContent.dropFirst().dropLast())
+                } else {
+                    formattedText = "_\(selectedContent)_"
+                }
             case .bold:
-                formattedText = "**\(selectedContent)**"
+                if selectedContent.hasPrefix("**") && selectedContent.hasSuffix("**") {
+                    // Remove bold formatting
+                    formattedText = String(selectedContent.dropFirst(2).dropLast(2))
+                } else {
+                    formattedText = "**\(selectedContent)**"
+                }
             case .strikethrough:
-                formattedText = "~~\(selectedContent)~~"
+                if selectedContent.hasPrefix("~~") && selectedContent.hasSuffix("~~") {
+                    // Remove strikethrough formatting
+                    formattedText = String(selectedContent.dropFirst(2).dropLast(2))
+                } else {
+                    formattedText = "~~\(selectedContent)~~"
+                }
             default:
                 return
             }
             
             textView.replaceCharacters(in: selectedRange, with: formattedText)
-            
             document.text = textView.string
+            
+            // Update selection to cover new text
+            let newLength = formattedText.count
+            textView.setSelectedRange(NSRange(location: selectedRange.location, length: newLength))
         } else {
             // No selection, insert at cursor
             let insertion: String
