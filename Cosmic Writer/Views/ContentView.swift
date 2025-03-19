@@ -7,6 +7,7 @@ import AppKit
 import HighlightedTextEditor
 import MarkdownUI
 import CosmicSDK
+import SwiftData
 
 struct ContentView: View {
     @Binding var document: Cosmic_WriterDocument
@@ -38,6 +39,8 @@ struct iOSContentView: View {
     @State private var isSending: Bool = false
     @State private var showToast: Bool = false
     @State private var toastOffset: CGFloat = 100
+    @State private var isUploading: Bool = false
+    @State private var toastMessage: String = ""
     
     let device = UIDevice.current.userInterfaceIdiom
     let modal = UIImpactFeedbackGenerator(style: .medium)
@@ -61,38 +64,41 @@ struct iOSContentView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            if device == .pad {
-                HStack(spacing: 16) {
-                    EditorView(
-                        document: $document,
-                        cursorPosition: $cursorPosition,
-                        selectionLength: $selectionLength,
-                        selectedText: $selectedText,
-                        textView: $textView,
-                        onFormat: { format in
-                            applyMarkdownFormatting(format)
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                HSplitView {
+                    // Editor pane
+                    VStack(spacing: 0) {
+                        EditorView(
+                            document: $document,
+                            cursorPosition: $cursorPosition,
+                            selectionLength: $selectionLength,
+                            selectedText: $selectedText,
+                            textView: $textView,
+                            onFormat: { format in
+                                applyMarkdownFormatting(format)
+                            }
+                        )
+                        .onDrop(of: [.image], delegate: ImageDropDelegate(view: self))
+                        if !focusMode {
+                            Divider()
+                            PreviewView(document: document)
                         }
-                    )
+                    }
+                    .background(.background)
+                    .frame(minWidth: 400)
+                    
+                    // Preview pane
                     if !focusMode {
-                        Divider()
                         PreviewView(document: document)
+                            .frame(minWidth: 400)
+                            .padding()
                     }
                 }
-            } else {
-                EditorView(
-                    document: $document,
-                    cursorPosition: $cursorPosition,
-                    selectionLength: $selectionLength,
-                    selectedText: $selectedText,
-                    textView: $textView,
-                    onFormat: { format in
-                        applyMarkdownFormatting(format)
-                    }
-                )
             }
+            
             if showToast {
-                ToastView(message: "Post submitted")
+                ToastView(message: toastMessage)
                     .offset(y: toastOffset)
                     .animation(.spring(response: 0.3), value: toastOffset)
             }
@@ -100,7 +106,7 @@ struct iOSContentView: View {
         .onChange(of: showToast) { _, newValue in
             if newValue {
                 withAnimation {
-                    toastOffset = -32 // Slide up to visible position
+                    toastOffset = -32 // Slide up from bottom
                 }
                 
                 // Automatically hide after delay
@@ -250,11 +256,76 @@ struct iOSContentView: View {
             Task { @MainActor in
                 switch results {
                 case .success(_):
+                    self.toastMessage = "Post submitted"
                     self.showToast = true
                     self.isSending = false
                 case .failure(let error):
+                    self.toastMessage = "Failed to submit post"
+                    self.showToast = true
                     print(error)
                 }
+            }
+        }
+    }
+    
+    func uploadImage(_ imageData: Data, fileName: String) {
+        isUploading = true
+        
+        // Create a temporary file with the image data
+        let tempDir = FileManager.default.temporaryDirectory
+        let tempFileURL = tempDir.appendingPathComponent(fileName)
+        
+        do {
+            try imageData.write(to: tempFileURL)
+            
+            // Create Cosmic client
+            let cosmic = CosmicSDKSwift(.createBucketClient(bucketSlug: BUCKET, readKey: READ_KEY, writeKey: WRITE_KEY))
+            
+            cosmic.uploadMedia(fileURL: tempFileURL, metadata: ["write_key": WRITE_KEY]) { result in
+                Task { @MainActor in
+                    // Clean up temporary file
+                    try? FileManager.default.removeItem(at: tempFileURL)
+                    
+                    switch result {
+                    case .success(let response):
+                        if let imgixUrl = response.media?.imgix_url {
+                            showToastMessage("Image uploaded successfully")
+                            // Insert the image markdown at the current cursor position
+                            insertImageMarkdown(fileName: fileName, url: imgixUrl)
+                        } else {
+                            showToastMessage("Invalid response from server")
+                        }
+                    case .failure(let error):
+                        showToastMessage("Upload failed")
+                        print("Failed to upload image: \(error)")
+                    }
+                    isUploading = false
+                }
+            }
+        } catch {
+            showToastMessage("Failed to process image")
+            print("Failed to write image: \(error)")
+            isUploading = false
+        }
+    }
+    
+    func showToastMessage(_ message: String) {
+        toastMessage = message
+        showToast = true
+    }
+    
+    func insertImageMarkdown(fileName: String, url: String) {
+        guard let textView = textView else { return }
+        
+        let imageMarkdown = "![\(fileName)](\(url))"
+        let selectedRange = textView.selectedRange
+        
+        if let textRange = textView.selectedTextRange ?? textView.textRange(from: textView.endOfDocument, to: textView.endOfDocument) {
+            textView.replace(textRange, withText: imageMarkdown)
+            
+            // Move cursor to the end of the inserted markdown
+            if let newPosition = textView.position(from: textView.beginningOfDocument, offset: selectedRange.location + imageMarkdown.count) {
+                textView.selectedTextRange = textView.textRange(from: newPosition, to: newPosition)
             }
         }
     }
@@ -286,12 +357,221 @@ struct iOSContentView: View {
         }
     }
 }
+
+struct ImageDropDelegate: DropDelegate {
+    let view: iOSContentView
+    
+    func performDrop(info: DropInfo) -> Bool {
+        guard let itemProvider = info.itemProviders(for: [.image]).first else { return false }
+        
+        itemProvider.loadObject(ofClass: UIImage.self) { object, error in
+            if let image = object as? UIImage,
+               let imageData = image.jpegData(compressionQuality: 0.8) {
+                let fileName = "image_\(Date().timeIntervalSince1970).jpg"
+                Task { @MainActor in
+                    view.uploadImage(imageData, fileName: fileName)
+                }
+            }
+        }
+        
+        return true
+    }
+    
+    func dropEntered(info: DropInfo) {
+        // Optional: Add visual feedback when dragging over
+    }
+    
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .copy)
+    }
+}
 #endif
 
 #if os(macOS)
+// Add ImageShelf component before MacContentView
+struct ImageShelf: View {
+    let onImageDropped: (URL) -> Void
+    let onImageClick: (String, String) -> Void
+    let onDelete: (ShelfImage) -> Void
+    let droppedImages: [ShelfImage]
+    let isUploading: Bool
+    let errorMessage: String?
+    @State private var showImagePicker = false
+    
+    var body: some View {
+        VStack(spacing: 2) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(droppedImages) { image in
+                        AsyncImage(url: URL(string: "\(image.cosmicURL)?w=120&h=120&fit=crop&auto=format,compress")) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            case .failure:
+                                Image(systemName: "photo")
+                                    .foregroundStyle(.secondary)
+                            case .empty:
+                                ProgressView()
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(.secondary.opacity(0.2), lineWidth: 1)
+                        )
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                onDelete(image)
+                            } label: {
+                                Label("Remove from Shelf", systemImage: "trash")
+                            }
+                        }
+                        .onTapGesture {
+                            let optimizedUrl = "\(image.cosmicURL)?auto=format,compress"
+                            onImageClick(image.localURL.lastPathComponent, optimizedUrl)
+                        }
+                    }
+                    
+                    // Drop zone
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(style: StrokeStyle(lineWidth: 1.5, dash: [4]))
+                            .foregroundStyle(.secondary.opacity(0.3))
+                        
+                        if isUploading {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "plus")
+                                .foregroundStyle(.secondary)
+                                .font(.caption)
+                        }
+                        
+                        if let error = errorMessage {
+                            Text(error)
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 2)
+                        }
+                    }
+                    .frame(width: 40, height: 40)
+                    .onTapGesture {
+                        #if os(iOS)
+                        showImagePicker = true
+                        #else
+                        let panel = NSOpenPanel()
+                        panel.allowsMultipleSelection = false
+                        panel.canChooseDirectories = false
+                        panel.canChooseFiles = true
+                        panel.allowedContentTypes = [.image]
+                        
+                        panel.begin { response in
+                            if response == .OK, let url = panel.url {
+                                Task { @MainActor in
+                                    onImageDropped(url)
+                                }
+                            }
+                        }
+                        #endif
+                    }
+                    .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                        guard let provider = providers.first else { return false }
+                        
+                        _ = provider.loadObject(ofClass: URL.self) { url, error in
+                            guard let url = url, error == nil else { return }
+                            
+                            #if os(macOS)
+                            // Verify it's an image and check size
+                            guard let image = NSImage(contentsOf: url) else { return }
+                            
+                            // Check file size (limit to 5MB)
+                            let resources = try? url.resourceValues(forKeys: [.fileSizeKey])
+                            let fileSize = resources?.fileSize ?? 0
+                            if fileSize > 5_000_000 {
+                                Task { @MainActor in
+                                    print("Image too large (max 5MB)")
+                                }
+                                return
+                            }
+                            #endif
+                            
+                            Task { @MainActor in
+                                onImageDropped(url)
+                            }
+                        }
+                        return true
+                    }
+                }
+                .padding(.horizontal, 12)
+            }
+            
+            Text("Drop images here or click to insert (max 5MB)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 2)
+        }
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        #if os(iOS)
+        .sheet(isPresented: $showImagePicker) {
+            ImagePicker { url in
+                onImageDropped(url)
+            }
+        }
+        #endif
+    }
+}
+
+#if os(iOS)
+struct ImagePicker: UIViewControllerRepresentable {
+    let onImagePicked: (URL) -> Void
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        picker.mediaTypes = ["public.image"]
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePicker
+        
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let imageURL = info[.imageURL] as? URL {
+                parent.onImagePicked(imageURL)
+            }
+            picker.dismiss(animated: true)
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            picker.dismiss(animated: true)
+        }
+    }
+}
+#endif
+
 @MainActor
 struct MacContentView: View {
     @Binding var document: Cosmic_WriterDocument
+    @Environment(\.modelContext) private var modelContext
+    @Query private var shelfImages: [ShelfImage]
+    
     @AppStorage("bucketName") var BUCKET = ""
     @AppStorage("readKey") var READ_KEY = ""
     @AppStorage("writeKey") var WRITE_KEY = ""
@@ -306,6 +586,14 @@ struct MacContentView: View {
     @State private var isSending: Bool = false
     @State private var showToast: Bool = false
     @State private var toastOffset: CGFloat = 100
+    @State private var isUploading: Bool = false
+    @State private var imageError: String?
+    @State private var toastMessage: String = ""
+    
+    // Filter images for current document
+    private var documentImages: [ShelfImage] {
+        shelfImages.filter { $0.documentID == document.filePath }
+    }
     
     // Add these computed properties to both iOSContentView and MacContentView
     private var characterCount: Int {
@@ -325,46 +613,71 @@ struct MacContentView: View {
     }
     
     var body: some View {
-        HSplitView {
-            // Editor pane
-            VStack {
-                HighlightedTextEditor(text: $document.text, highlightRules: .markdown)
-                    .onSelectionChange { (range: NSRange) in
-                        cursorPosition = range.location
-                        selectionLength = range.length
-                    }
-                    .introspect { editor in
-                        DispatchQueue.main.async {
-                            textView = editor.textView
-                            
-                            if let selectedRange = textView?.selectedRange() {
-                                selectedText = textView?.string.substring(with: selectedRange) ?? ""
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                HSplitView {
+                    // Editor pane
+                    VStack(spacing: 0) {
+                        HighlightedTextEditor(text: $document.text, highlightRules: .markdown)
+                            .onSelectionChange { (range: NSRange) in
+                                cursorPosition = range.location
+                                selectionLength = range.length
                             }
-                        }
+                            .introspect { editor in
+                                DispatchQueue.main.async {
+                                    textView = editor.textView
+                                    textView?.isAutomaticQuoteSubstitutionEnabled = true
+                                    textView?.isAutomaticDashSubstitutionEnabled = true
+                                    textView?.isAutomaticTextReplacementEnabled = true
+                                    textView?.isAutomaticSpellingCorrectionEnabled = true
+                                    
+                                    if let selectedRange = textView?.selectedRange() {
+                                        selectedText = textView?.string.substring(with: selectedRange) ?? ""
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        
+                        // Add ImageShelf
+                        ImageShelf(
+                            onImageDropped: { url in
+                                uploadImage(url)
+                            },
+                            onImageClick: { fileName, cosmicUrl in
+                                insertImageMarkdown(fileName: fileName, url: cosmicUrl)
+                            },
+                            onDelete: { image in
+                                modelContext.delete(image)
+                                try? modelContext.save()
+                            },
+                            droppedImages: documentImages,
+                            isUploading: isUploading,
+                            errorMessage: imageError
+                        )
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
-                if showToast {
-                    ToastView(message: "Post submitted")
-                        .offset(y: toastOffset)
-                        .animation(.spring(response: 0.3), value: toastOffset)
+                    .background(.background)
+                    .frame(minWidth: 400)
+                    
+                    // Preview pane
+                    if !focusMode {
+                        PreviewView(document: document)
+                            .frame(minWidth: 400)
+                            .padding()
+                    }
                 }
             }
-            .background(.background)
-            .frame(minWidth: 400)
             
-            // Preview pane
-            if !focusMode {
-                PreviewView(document: document)
-                    .frame(minWidth: 400)
-                    .padding()
+            if showToast {
+                ToastView(message: toastMessage)
+                    .offset(y: toastOffset)
+                    .animation(.spring(response: 0.3), value: toastOffset)
             }
         }
         .onChange(of: showToast) { _, newValue in
             if newValue {
                 withAnimation {
-                    toastOffset = -32 // Slide up to visible position
+                    toastOffset = -32 // Slide up from bottom
                 }
                 
                 // Automatically hide after delay
@@ -438,18 +751,105 @@ struct MacContentView: View {
         }
     }
     
-    private func updateCursorPosition() {
-       guard let textView = textView else { return }
-       textView.selectedRange = NSRange(location: cursorPosition, length: 0)
-   }
+    func insertImageMarkdown(fileName: String, url: String) {
+        guard let textView = textView else { return }
+        
+        let imageMarkdown = "![\(fileName)](\(url))"
+        let selectedRange = textView.selectedRange()
+        
+        textView.shouldChangeText(in: selectedRange, replacementString: imageMarkdown)
+        textView.replaceCharacters(in: selectedRange, with: imageMarkdown)
+        textView.didChangeText()
+        
+        // Move cursor after the image
+        let newPosition = selectedRange.location + imageMarkdown.count
+        textView.setSelectedRange(NSRange(location: newPosition, length: 0))
+        
+        // Update the document text
+        document.text = textView.string
+    }
     
-    @MainActor
+    func uploadImage(_ imageURL: URL) {
+        isUploading = true
+        
+        // Create Cosmic client
+        let cosmic = CosmicSDKSwift(.createBucketClient(bucketSlug: BUCKET, readKey: READ_KEY, writeKey: WRITE_KEY))
+        
+        // Load and compress image if needed
+        guard let image = NSImage(contentsOf: imageURL) else {
+            showToastMessage("Invalid image")
+            return
+        }
+        
+        // Convert NSImage to compressed JPEG Data
+        guard let tiffData = image.tiffRepresentation,
+              let bitmapImage = NSBitmapImageRep(data: tiffData),
+              let compressedData = bitmapImage.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else {
+            showToastMessage("Failed to process image")
+            return
+        }
+        
+        // Check if compressed size is still too large (2MB limit)
+        if compressedData.count > 2_000_000 {
+            showToastMessage("Image too large (max 2MB)")
+            return
+        }
+        
+        // Create a temporary file with the compressed data
+        let tempDir = FileManager.default.temporaryDirectory
+        let tempFileURL = tempDir.appendingPathComponent("compressed_\(imageURL.lastPathComponent)")
+        
+        do {
+            try compressedData.write(to: tempFileURL)
+            
+            // Upload compressed image
+            print("Starting media upload with bucket:", BUCKET)
+            print("File URL:", tempFileURL)
+            print("Write key:", WRITE_KEY)
+            
+            cosmic.uploadMedia(fileURL: tempFileURL, metadata: ["write_key": WRITE_KEY]) { result in
+                Task { @MainActor in
+                    // Clean up temporary file
+                    try? FileManager.default.removeItem(at: tempFileURL)
+                    
+                    switch result {
+                    case .success(let response):
+                        print("Upload response received:", response)
+                        if let imgixUrl = response.media?.imgix_url {
+                            print("Media URL:", imgixUrl)
+                            // Create and save ShelfImage
+                            let shelfImage = ShelfImage(
+                                localURL: imageURL,
+                                cosmicURL: imgixUrl,
+                                documentID: document.filePath
+                            )
+                            modelContext.insert(shelfImage)
+                            try? modelContext.save()
+                            showToastMessage("Image uploaded successfully")
+                        } else {
+                            showToastMessage("Invalid response from server")
+                            print("Media response missing URL:", response)
+                            print("Response message:", response.message ?? "No message")
+                        }
+                    case .failure(let error):
+                        showToastMessage("Upload failed")
+                        print("Failed to upload image: \(error)")
+                    }
+                    isUploading = false
+                }
+            }
+        } catch {
+            showToastMessage("Failed to process image")
+            print("Failed to write compressed image: \(error)")
+        }
+    }
+    
     func uploadPost() {
         let cosmic = CosmicSDKSwift(.createBucketClient(bucketSlug: BUCKET, readKey: READ_KEY, writeKey: WRITE_KEY))
         
         cosmic.insertOne(type: "writings", title: document.title, metadata: [
-            "content": document.text,
             "tag": tag,
+            "content": document.text,
         ], status: .draft) { results in
             Task { @MainActor in
                 switch results {
@@ -530,8 +930,30 @@ struct MacContentView: View {
             }
         ]
     }
+    
+    func showError(_ message: String) {
+        imageError = message
+        isUploading = false
+        // Clear error after 3 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            imageError = nil
+        }
+    }
+    
+    func showToastMessage(_ message: String) {
+        toastMessage = message
+        showToast = true
+    }
 }
 
+extension String {
+    func substring(with nsrange: NSRange) -> String? {
+        guard let range = Range(nsrange, in: self) else { return nil }
+        return String(self[range])
+    }
+}
+
+// Add back the extension with formatting methods
 extension MacContentView {
     func applyMarkdownFormatting(_ format: MarkdownFormatting) {
         guard let textView = textView else {
@@ -688,11 +1110,6 @@ extension MacContentView {
     }
 }
 
-extension String {
-    func substring(with nsrange: NSRange) -> String? {
-        guard let range = Range(nsrange, in: self) else { return nil }
-        return String(self[range])
-    }
-}
-
 #endif
+
+

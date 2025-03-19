@@ -13,6 +13,7 @@
 		CF1C8F3A2989183F00CEF906 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF1C8F392989183F00CEF906 /* Assets.xcassets */; };
 		CF1C8F3F2989183F00CEF906 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */; };
 		CF70DD64298BBAD900235897 /* HighlightedTextEditor in Frameworks */ = {isa = PBXBuildFile; productRef = CF70DD63298BBAD900235897 /* HighlightedTextEditor */; };
+		CF83F4292D8AEECC00604131 /* ShelfImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF83F4272D8AEECC00604131 /* ShelfImage.swift */; };
 		CF84EC8D2CFE45D60081E019 /* Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC8C2CFE45D40081E019 /* Helpers.swift */; };
 		CF84EC912CFE46210081E019 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC902CFE461F0081E019 /* PreviewView.swift */; };
 		CF84EC932CFE468D0081E019 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC922CFE468B0081E019 /* EditorView.swift */; };
@@ -32,6 +33,7 @@
 		CF1C8F3B2989183F00CEF906 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CF1C8F3C2989183F00CEF906 /* Cosmic_Writer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Cosmic_Writer.entitlements; sourceTree = "<group>"; };
 		CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		CF83F4272D8AEECC00604131 /* ShelfImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfImage.swift; sourceTree = "<group>"; };
 		CF84EC8C2CFE45D40081E019 /* Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Helpers.swift; sourceTree = "<group>"; };
 		CF84EC902CFE461F0081E019 /* PreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewView.swift; sourceTree = "<group>"; };
 		CF84EC922CFE468B0081E019 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
@@ -75,6 +77,7 @@
 			children = (
 				CF1C8F332989183D00CEF906 /* Cosmic_WriterApp.swift */,
 				CF1C8F352989183D00CEF906 /* Cosmic_WriterDocument.swift */,
+				CF83F4282D8AEECC00604131 /* Models */,
 				CF981434298919CA00E64BEB /* Views */,
 				CF98143B29894B3500E64BEB /* Helpers */,
 				CF1C8F392989183F00CEF906 /* Assets.xcassets */,
@@ -91,6 +94,14 @@
 				CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		CF83F4282D8AEECC00604131 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				CF83F4272D8AEECC00604131 /* ShelfImage.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		CF981434298919CA00E64BEB /* Views */ = {
@@ -196,6 +207,7 @@
 			files = (
 				CF84EC932CFE468D0081E019 /* EditorView.swift in Sources */,
 				CF1C8F342989183D00CEF906 /* Cosmic_WriterApp.swift in Sources */,
+				CF83F4292D8AEECC00604131 /* ShelfImage.swift in Sources */,
 				CF84EC912CFE46210081E019 /* PreviewView.swift in Sources */,
 				CF84EC8D2CFE45D60081E019 /* Helpers.swift in Sources */,
 				CF1C8F362989183D00CEF906 /* Cosmic_WriterDocument.swift in Sources */,
@@ -456,7 +468,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/cosmicjs/CosmicSDKSwift";
 			requirement = {
-				branch = main;
+				branch = "feature/extended-api-support";
 				kind = branch;
 			};
 		};

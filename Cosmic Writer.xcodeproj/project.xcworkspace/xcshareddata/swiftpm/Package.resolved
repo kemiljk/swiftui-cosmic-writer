@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/cosmicjs/CosmicSDKSwift",
       "state" : {
-        "branch" : "main",
-        "revision" : "931bcee52489a733e65abab9e12d75abe7a545cb"
+        "branch" : "feature/extended-api-support",
+        "revision" : "d3c8b9a5bee20d60f0cb151ca52b26e3b1f6e031"
       }
     },
     {

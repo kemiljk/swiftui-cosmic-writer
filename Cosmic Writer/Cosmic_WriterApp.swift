@@ -6,12 +6,24 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct Cosmic_WriterApp: App {
+    let container: ModelContainer
+    
+    init() {
+        do {
+            container = try ModelContainer(for: ShelfImage.self)
+        } catch {
+            fatalError("Failed to initialize SwiftData: \(error)")
+        }
+    }
+    
     var body: some Scene {
         DocumentGroup(newDocument: Cosmic_WriterDocument()) { file in
             ContentView(document: file.$document)
+                .modelContainer(container)
         }
         .commands {
             CommandGroup(after: .textFormatting) {

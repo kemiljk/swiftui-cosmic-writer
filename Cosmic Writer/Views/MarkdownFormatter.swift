@@ -90,7 +90,23 @@ class MarkdownFormatter {
                 formattedText = "`\(selectedText)`"
                 newCursorPosition = startLocation + formattedText.count
             case .codeBlock:
-                formattedText = "```\n\(selectedText)\n```"
+                // Check if the selected text already has a language specified
+                if selectedText.hasPrefix("```") {
+                    let lines = selectedText.components(separatedBy: .newlines)
+                    if lines.count >= 2 {
+                        let firstLine = lines[0].trimmingCharacters(in: .whitespaces)
+                        let language = firstLine.replacingOccurrences(of: "```", with: "").trimmingCharacters(in: .whitespaces)
+                        if !language.isEmpty {
+                            formattedText = "```\(language)\n\(selectedText.dropFirst(firstLine.count + 1).trimmingCharacters(in: .whitespaces))\n```"
+                        } else {
+                            formattedText = "```\n\(selectedText.trimmingCharacters(in: .whitespaces))\n```"
+                        }
+                    } else {
+                        formattedText = "```\n\(selectedText)\n```"
+                    }
+                } else {
+                    formattedText = "```\n\(selectedText)\n```"
+                }
                 newCursorPosition = startLocation + formattedText.count
             case .strikethrough:
                 if selectedText.hasPrefix("~~") && selectedText.hasSuffix("~~") {
@@ -102,10 +118,12 @@ class MarkdownFormatter {
                 }
             case .table:
                 // Create a 2x2 table with the selected text in the first cell
+                let lines = selectedText.components(separatedBy: .newlines)
+                let cellContent = lines.first ?? selectedText
                 formattedText = """
                 | Header 1 | Header 2 |
-                |----------|----------|
-                | \(selectedText) | Cell 2 |
+                |:--------|:---------|
+                | \(cellContent) | Cell 2 |
                 | Cell 3 | Cell 4 |
                 """
                 newCursorPosition = startLocation + formattedText.count
