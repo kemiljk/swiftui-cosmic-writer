@@ -27,7 +27,7 @@ enum PostTag: String, CaseIterable {
 
 
 enum MarkdownFormatting: CaseIterable, Identifiable {
-    case heading, image, link, italic, bold, code, codeBlock, strikethrough
+    case heading, image, link, italic, bold, code, codeBlock, strikethrough, table, taskList, blockquote, horizontalRule
     
     var id: String { title }
     
@@ -41,6 +41,10 @@ enum MarkdownFormatting: CaseIterable, Identifiable {
         case .image: return "Image"
         case .code: return "Code"
         case .codeBlock: return "Code Block"
+        case .table: return "Table"
+        case .taskList: return "Task List"
+        case .blockquote: return "Blockquote"
+        case .horizontalRule: return "Horizontal Rule"
         }
     }
     
@@ -54,6 +58,24 @@ enum MarkdownFormatting: CaseIterable, Identifiable {
         case .image: return "photo"
         case .code: return "terminal"
         case .codeBlock: return "curlybraces.square"
+        case .table: return "tablecells"
+        case .taskList: return "checklist"
+        case .blockquote: return "text.quote"
+        case .horizontalRule: return "minus"
         }
+    }
+}
+
+extension String {
+    var wordCount: Int {
+        let words = self.split { $0.isWhitespace || $0.isNewline }
+        return words.count
+    }
+    
+    var estimatedReadingTime: Int {
+        // Average reading speed is 200-250 words per minute
+        let wordsPerMinute = 225
+        let minutes = Double(wordCount) / Double(wordsPerMinute)
+        return Int(ceil(minutes))
     }
 }

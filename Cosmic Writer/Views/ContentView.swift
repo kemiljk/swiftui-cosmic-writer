@@ -43,9 +43,21 @@ struct iOSContentView: View {
     let modal = UIImpactFeedbackGenerator(style: .medium)
     let success = UIImpactFeedbackGenerator(style: .heavy)
     
-    // Add this computed property to both iOSContentView and MacContentView
+    // Add these computed properties to both iOSContentView and MacContentView
     private var characterCount: Int {
         document.text.count
+    }
+    
+    private var wordCount: Int {
+        document.text.wordCount
+    }
+    
+    private var readingTime: Int {
+        document.text.estimatedReadingTime
+    }
+    
+    private var statsText: String {
+        "\(characterCount) characters • \(wordCount) words • \(readingTime) min read"
     }
     
     var body: some View {
@@ -107,9 +119,8 @@ struct iOSContentView: View {
         .toolbar {
             // iPad toolbar
             if device == .pad {
-                // In iOSContentView's toolbar, add this ToolbarItem before the primaryAction
                 ToolbarItem(placement: .topBarLeading) {
-                    Text("\(characterCount)")
+                    Text(statsText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -161,9 +172,8 @@ struct iOSContentView: View {
             
             // iPhone toolbar
             if device == .phone {
-                // In iOSContentView's toolbar, add this ToolbarItem before the primaryAction
                 ToolbarItem(placement: .topBarLeading) {
-                    Text("\(characterCount)")
+                    Text(statsText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -297,9 +307,21 @@ struct MacContentView: View {
     @State private var showToast: Bool = false
     @State private var toastOffset: CGFloat = 100
     
-    // Add this computed property to both iOSContentView and MacContentView
+    // Add these computed properties to both iOSContentView and MacContentView
     private var characterCount: Int {
         document.text.count
+    }
+    
+    private var wordCount: Int {
+        document.text.wordCount
+    }
+    
+    private var readingTime: Int {
+        document.text.estimatedReadingTime
+    }
+    
+    private var statsText: String {
+        "\(characterCount) characters • \(wordCount) words • \(readingTime) min read"
     }
     
     var body: some View {
@@ -357,9 +379,9 @@ struct MacContentView: View {
             }
         }
         .toolbar {
-            // In MacContentView's toolbar, add this ToolbarItem before the primaryAction
             ToolbarItem(placement: .automatic) {
-                Text("\(characterCount) characters")
+                Text(statsText)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 

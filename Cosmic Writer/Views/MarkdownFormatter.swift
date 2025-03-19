@@ -100,6 +100,28 @@ class MarkdownFormatter {
                     formattedText = "~~\(selectedText)~~"
                     newCursorPosition = startLocation + formattedText.count
                 }
+            case .table:
+                // Create a 2x2 table with the selected text in the first cell
+                formattedText = """
+                | Header 1 | Header 2 |
+                |----------|----------|
+                | \(selectedText) | Cell 2 |
+                | Cell 3 | Cell 4 |
+                """
+                newCursorPosition = startLocation + formattedText.count
+            case .taskList:
+                // Convert each line to a task list item
+                let lines = selectedText.components(separatedBy: .newlines)
+                formattedText = lines.map { "- [ ] \($0)" }.joined(separator: "\n")
+                newCursorPosition = startLocation + formattedText.count
+            case .blockquote:
+                // Convert each line to a blockquote
+                let lines = selectedText.components(separatedBy: .newlines)
+                formattedText = lines.map { "> \($0)" }.joined(separator: "\n")
+                newCursorPosition = startLocation + formattedText.count
+            case .horizontalRule:
+                formattedText = "\n---\n"
+                newCursorPosition = startLocation + formattedText.count
             }
             
             document.text.replaceSubrange(swiftRange, with: formattedText)

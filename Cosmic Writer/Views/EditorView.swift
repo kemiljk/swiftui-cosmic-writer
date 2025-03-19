@@ -54,6 +54,7 @@ struct EditorView: View {
                     let textGroup = [MarkdownFormatting.heading, .bold, .italic, .strikethrough]
                     let linkGroup = [MarkdownFormatting.link, .image]
                     let codeGroup = [MarkdownFormatting.code, .codeBlock]
+                    let listGroup = [MarkdownFormatting.table, .taskList, .blockquote, .horizontalRule]
 
                     // Add text formatting group
                     for format in textGroup {
@@ -87,6 +88,21 @@ struct EditorView: View {
 
                     // Add code group
                     for format in codeGroup {
+                        let formatButton = UIBarButtonItem(
+                            image: UIImage(systemName: format.icon),
+                            style: .plain,
+                            target: editor.textView,
+                            action: #selector(UITextView.handleMarkdownFormatting(_:))
+                        )
+                        formatButton.accessibilityIdentifier = format.id
+                        toolbarItems.append(formatButton)
+                    }
+
+                    // Add third divider
+                    toolbarItems.append(createDivider())
+
+                    // Add list group
+                    for format in listGroup {
                         let formatButton = UIBarButtonItem(
                             image: UIImage(systemName: format.icon),
                             style: .plain,
