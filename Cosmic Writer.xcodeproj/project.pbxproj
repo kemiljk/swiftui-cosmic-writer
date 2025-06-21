@@ -7,17 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CF088D362DF5C9BB00BBB973 /* MarkdownFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF088D352DF5C9B500BBB973 /* MarkdownFormatter.swift */; };
+		CF088D382DF6093900BBB973 /* UIKitSwiftUISync.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF088D372DF6093900BBB973 /* UIKitSwiftUISync.swift */; };
+		CF088D3B2DF60BBB00BBB973 /* HighlightedTextEditor in Frameworks */ = {isa = PBXBuildFile; productRef = CF088D3A2DF60BBB00BBB973 /* HighlightedTextEditor */; };
 		CF1C8F342989183D00CEF906 /* Cosmic_WriterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1C8F332989183D00CEF906 /* Cosmic_WriterApp.swift */; };
 		CF1C8F362989183D00CEF906 /* Cosmic_WriterDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1C8F352989183D00CEF906 /* Cosmic_WriterDocument.swift */; };
 		CF1C8F382989183D00CEF906 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1C8F372989183D00CEF906 /* ContentView.swift */; };
 		CF1C8F3A2989183F00CEF906 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF1C8F392989183F00CEF906 /* Assets.xcassets */; };
 		CF1C8F3F2989183F00CEF906 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */; };
-		CF70DD64298BBAD900235897 /* HighlightedTextEditor in Frameworks */ = {isa = PBXBuildFile; productRef = CF70DD63298BBAD900235897 /* HighlightedTextEditor */; };
-		CF83F4292D8AEECC00604131 /* ShelfImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF83F4272D8AEECC00604131 /* ShelfImage.swift */; };
+		CF4063F72E06D2BE00E3626E /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = CF4063F62E06D2BE00E3626E /* AppIcon.icon */; };
+		CF83F4292D8AEECC00604131 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF83F4272D8AEECC00604131 /* Model.swift */; };
 		CF84EC8D2CFE45D60081E019 /* Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC8C2CFE45D40081E019 /* Helpers.swift */; };
 		CF84EC912CFE46210081E019 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC902CFE461F0081E019 /* PreviewView.swift */; };
 		CF84EC932CFE468D0081E019 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC922CFE468B0081E019 /* EditorView.swift */; };
-		CF84EC952CFE4A9A0081E019 /* MarkdownFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC942CFE4A980081E019 /* MarkdownFormatter.swift */; };
 		CF981441298955E000E64BEB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF981440298955E000E64BEB /* SettingsView.swift */; };
 		CFB7ADA02CFEFA50007A5854 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB7AD9F2CFEFA4A007A5854 /* ToastView.swift */; };
 		CFB91BE62AEEA35100DAD153 /* CosmicSDK in Frameworks */ = {isa = PBXBuildFile; productRef = CFB91BE52AEEA35100DAD153 /* CosmicSDK */; };
@@ -25,6 +27,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CF088D352DF5C9B500BBB973 /* MarkdownFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownFormatter.swift; sourceTree = "<group>"; };
+		CF088D372DF6093900BBB973 /* UIKitSwiftUISync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIKitSwiftUISync.swift; sourceTree = "<group>"; };
 		CF1C8F302989183D00CEF906 /* Cosmic Writer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cosmic Writer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF1C8F332989183D00CEF906 /* Cosmic_WriterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cosmic_WriterApp.swift; sourceTree = "<group>"; };
 		CF1C8F352989183D00CEF906 /* Cosmic_WriterDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cosmic_WriterDocument.swift; sourceTree = "<group>"; };
@@ -33,11 +37,11 @@
 		CF1C8F3B2989183F00CEF906 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CF1C8F3C2989183F00CEF906 /* Cosmic_Writer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Cosmic_Writer.entitlements; sourceTree = "<group>"; };
 		CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		CF83F4272D8AEECC00604131 /* ShelfImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfImage.swift; sourceTree = "<group>"; };
+		CF4063F62E06D2BE00E3626E /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
+		CF83F4272D8AEECC00604131 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		CF84EC8C2CFE45D40081E019 /* Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Helpers.swift; sourceTree = "<group>"; };
 		CF84EC902CFE461F0081E019 /* PreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewView.swift; sourceTree = "<group>"; };
 		CF84EC922CFE468B0081E019 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
-		CF84EC942CFE4A980081E019 /* MarkdownFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownFormatter.swift; sourceTree = "<group>"; };
 		CF981440298955E000E64BEB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		CFB7AD9F2CFEFA4A007A5854 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -47,8 +51,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CF70DD64298BBAD900235897 /* HighlightedTextEditor in Frameworks */,
 				CFB91BE62AEEA35100DAD153 /* CosmicSDK in Frameworks */,
+				CF088D3B2DF60BBB00BBB973 /* HighlightedTextEditor in Frameworks */,
 				CFE33675298AD6DB00980014 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -61,6 +65,7 @@
 			children = (
 				CF1C8F322989183D00CEF906 /* Cosmic Writer */,
 				CF1C8F312989183D00CEF906 /* Products */,
+				CF4063F62E06D2BE00E3626E /* AppIcon.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -79,6 +84,7 @@
 				CF1C8F352989183D00CEF906 /* Cosmic_WriterDocument.swift */,
 				CF83F4282D8AEECC00604131 /* Models */,
 				CF981434298919CA00E64BEB /* Views */,
+				CF824B262DAEF2BC00470BE8 /* Services */,
 				CF98143B29894B3500E64BEB /* Helpers */,
 				CF1C8F392989183F00CEF906 /* Assets.xcassets */,
 				CF1C8F3B2989183F00CEF906 /* Info.plist */,
@@ -96,10 +102,18 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
+		CF824B262DAEF2BC00470BE8 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				CF088D352DF5C9B500BBB973 /* MarkdownFormatter.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 		CF83F4282D8AEECC00604131 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				CF83F4272D8AEECC00604131 /* ShelfImage.swift */,
+				CF83F4272D8AEECC00604131 /* Model.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -108,7 +122,6 @@
 			isa = PBXGroup;
 			children = (
 				CFB7AD9F2CFEFA4A007A5854 /* ToastView.swift */,
-				CF84EC942CFE4A980081E019 /* MarkdownFormatter.swift */,
 				CF84EC922CFE468B0081E019 /* EditorView.swift */,
 				CF84EC902CFE461F0081E019 /* PreviewView.swift */,
 				CF1C8F372989183D00CEF906 /* ContentView.swift */,
@@ -121,6 +134,7 @@
 			isa = PBXGroup;
 			children = (
 				CF84EC8C2CFE45D40081E019 /* Helpers.swift */,
+				CF088D372DF6093900BBB973 /* UIKitSwiftUISync.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -143,8 +157,8 @@
 			name = "Cosmic Writer";
 			packageProductDependencies = (
 				CFE33674298AD6DB00980014 /* MarkdownUI */,
-				CF70DD63298BBAD900235897 /* HighlightedTextEditor */,
 				CFB91BE52AEEA35100DAD153 /* CosmicSDK */,
+				CF088D3A2DF60BBB00BBB973 /* HighlightedTextEditor */,
 			);
 			productName = "Cosmic Writer";
 			productReference = CF1C8F302989183D00CEF906 /* Cosmic Writer.app */;
@@ -158,7 +172,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1420;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					CF1C8F2F2989183D00CEF906 = {
 						CreatedOnToolsVersion = 14.2;
@@ -176,8 +190,8 @@
 			mainGroup = CF1C8F272989183D00CEF906;
 			packageReferences = (
 				CFE33673298AD6DB00980014 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
-				CF70DD62298BBAD900235897 /* XCRemoteSwiftPackageReference "HighlightedTextEditor" */,
 				CFB91BE42AEEA35100DAD153 /* XCRemoteSwiftPackageReference "CosmicSDKSwift" */,
+				CF088D392DF60BBB00BBB973 /* XCRemoteSwiftPackageReference "HighlightedTextEditor" */,
 			);
 			productRefGroup = CF1C8F312989183D00CEF906 /* Products */;
 			projectDirPath = "";
@@ -195,6 +209,7 @@
 			files = (
 				CF1C8F3F2989183F00CEF906 /* Preview Assets.xcassets in Resources */,
 				CF1C8F3A2989183F00CEF906 /* Assets.xcassets in Resources */,
+				CF4063F72E06D2BE00E3626E /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -207,14 +222,15 @@
 			files = (
 				CF84EC932CFE468D0081E019 /* EditorView.swift in Sources */,
 				CF1C8F342989183D00CEF906 /* Cosmic_WriterApp.swift in Sources */,
-				CF83F4292D8AEECC00604131 /* ShelfImage.swift in Sources */,
+				CF83F4292D8AEECC00604131 /* Model.swift in Sources */,
 				CF84EC912CFE46210081E019 /* PreviewView.swift in Sources */,
 				CF84EC8D2CFE45D60081E019 /* Helpers.swift in Sources */,
 				CF1C8F362989183D00CEF906 /* Cosmic_WriterDocument.swift in Sources */,
 				CF981441298955E000E64BEB /* SettingsView.swift in Sources */,
+				CF088D362DF5C9BB00BBB973 /* MarkdownFormatter.swift in Sources */,
 				CF1C8F382989183D00CEF906 /* ContentView.swift in Sources */,
 				CFB7ADA02CFEFA50007A5854 /* ToastView.swift in Sources */,
-				CF84EC952CFE4A9A0081E019 /* MarkdownFormatter.swift in Sources */,
+				CF088D382DF6093900BBB973 /* UIKitSwiftUISync.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -257,6 +273,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = WMGJ7B26TT;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -277,6 +294,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -318,6 +336,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = WMGJ7B26TT;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -331,6 +350,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 			};
@@ -347,9 +367,11 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Cosmic Writer/Preview Content\"";
-				DEVELOPMENT_TEAM = WMGJ7B26TT;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Cosmic Writer/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Writer;
@@ -366,7 +388,7 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphonesimulator*]" = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
@@ -395,9 +417,11 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Cosmic Writer/Preview Content\"";
-				DEVELOPMENT_TEAM = WMGJ7B26TT;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Cosmic Writer/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Writer;
@@ -414,7 +438,7 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphonesimulator*]" = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
@@ -456,19 +480,19 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		CF70DD62298BBAD900235897 /* XCRemoteSwiftPackageReference "HighlightedTextEditor" */ = {
+		CF088D392DF60BBB00BBB973 /* XCRemoteSwiftPackageReference "HighlightedTextEditor" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/kyle-n/HighlightedTextEditor";
+			repositoryURL = "https://github.com/nenosinc/HighlightedTextEditor";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.0;
+				branch = main;
+				kind = branch;
 			};
 		};
 		CFB91BE42AEEA35100DAD153 /* XCRemoteSwiftPackageReference "CosmicSDKSwift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/cosmicjs/CosmicSDKSwift";
 			requirement = {
-				branch = "feature/extended-api-support";
+				branch = main;
 				kind = branch;
 			};
 		};
@@ -483,9 +507,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		CF70DD63298BBAD900235897 /* HighlightedTextEditor */ = {
+		CF088D3A2DF60BBB00BBB973 /* HighlightedTextEditor */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = CF70DD62298BBAD900235897 /* XCRemoteSwiftPackageReference "HighlightedTextEditor" */;
+			package = CF088D392DF60BBB00BBB973 /* XCRemoteSwiftPackageReference "HighlightedTextEditor" */;
 			productName = HighlightedTextEditor;
 		};
 		CFB91BE52AEEA35100DAD153 /* CosmicSDK */ = {
