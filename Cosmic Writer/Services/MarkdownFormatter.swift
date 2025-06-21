@@ -25,22 +25,13 @@ class MarkdownFormatter {
         guard let textView = textView else { return }
         let selectedRange = textView.selectedRange
         let fullText = textView.text ?? ""
-        let textLength = (fullText as NSString).length
+        let textLength = fullText.count
         
         // Ensure range is within bounds
         let safeRange = NSRange(
             location: min(selectedRange.location, textLength),
             length: min(selectedRange.length, max(0, textLength - selectedRange.location))
         )
-        
-        // Ensure range is within bounds
-        let isValid = safeRange.location >= 0 && safeRange.length >= 0 && safeRange.location <= textLength && (safeRange.location + safeRange.length) <= textLength
-        if !isValid {
-#if DEBUG
-            print("[MarkdownFormatter] Invalid safeRange: \(safeRange), text length: \(textLength)")
-#endif
-            return
-        }
         
         if safeRange.length > 0 && safeRange.location + safeRange.length <= textLength {
             // There is selected text
@@ -49,8 +40,8 @@ class MarkdownFormatter {
             
             switch format {
             case .heading:
-                formattedText = selectedText.hasPrefix("# ") ? 
-                    String(selectedText.dropFirst(2)) : 
+                formattedText = selectedText.hasPrefix("# ") ?
+                    String(selectedText.dropFirst(2)) :
                     "# \(selectedText)"
             case .bold:
                 formattedText = selectedText.hasPrefix("**") && selectedText.hasSuffix("**") ?
@@ -86,7 +77,7 @@ class MarkdownFormatter {
                 document.text = textView.text
                 
                 // Update cursor position with bounds checking
-                let newPosition = min(safeRange.location + formattedText.count, (textView.text as NSString).length)
+                let newPosition = min(safeRange.location + formattedText.count, (textView.text ?? "").count)
                 if let position = textView.position(from: textView.beginningOfDocument, offset: newPosition) {
                     textView.selectedTextRange = textView.textRange(from: position, to: position)
                 }
@@ -133,7 +124,7 @@ class MarkdownFormatter {
                 document.text = textView.text
                 
                 // Update cursor position with bounds checking
-                let newPosition = min(safeRange.location + cursorOffset, (textView.text as NSString).length)
+                let newPosition = min(safeRange.location + cursorOffset, (textView.text ?? "").count)
                 if let position = textView.position(from: textView.beginningOfDocument, offset: newPosition) {
                     textView.selectedTextRange = textView.textRange(from: position, to: position)
                 }

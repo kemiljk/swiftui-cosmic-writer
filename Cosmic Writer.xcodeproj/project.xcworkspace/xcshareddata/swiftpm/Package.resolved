@@ -1,0 +1,51 @@
+{
+  "originHash" : "3f5c9edf92542dca18481567793408e92d74ceb72153b827d6b620f9aca7a424",
+  "pins" : [
+    {
+      "identity" : "cosmicsdkswift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/cosmicjs/CosmicSDKSwift",
+      "state" : {
+        "branch" : "main",
+        "revision" : "4722412d4f571323c728a59b38410acfbd56486c"
+      }
+    },
+    {
+      "identity" : "highlightedtexteditor",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nenosinc/HighlightedTextEditor",
+      "state" : {
+        "branch" : "main",
+        "revision" : "9c1564ce78f391d469d6153dc932ffe270ffecb3"
+      }
+    },
+    {
+      "identity" : "networkimage",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gonzalezreal/NetworkImage",
+      "state" : {
+        "revision" : "2849f5323265386e200484b0d0f896e73c3411b9",
+        "version" : "6.0.1"
+      }
+    },
+    {
+      "identity" : "swift-cmark",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-cmark",
+      "state" : {
+        "revision" : "b022b08312decdc46585e0b3440d97f6f22ef703",
+        "version" : "0.6.0"
+      }
+    },
+    {
+      "identity" : "swift-markdown-ui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gonzalezreal/swift-markdown-ui",
+      "state" : {
+        "revision" : "5f613358148239d0292c0cef674a3c2314737f9e",
+        "version" : "2.4.1"
+      }
+    }
+  ],
+  "version" : 3
+}

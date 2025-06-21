@@ -26,8 +26,19 @@ enum PostTag: String, CaseIterable {
 }
 
 
-enum MarkdownFormatting: CaseIterable, Identifiable {
-    case heading, image, link, italic, bold, code, codeBlock, strikethrough, table, taskList, blockquote, horizontalRule
+enum MarkdownFormatting: Int, CaseIterable, Identifiable {
+    case heading = 0
+    case image = 1
+    case link = 2
+    case italic = 3
+    case bold = 4
+    case code = 5
+    case codeBlock = 6
+    case strikethrough = 7
+    case table = 8
+    case taskList = 9
+    case blockquote = 10
+    case horizontalRule = 11
     
     var id: String { title }
     

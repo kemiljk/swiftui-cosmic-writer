@@ -53,7 +53,6 @@ struct Cosmic_WriterApp: App {
                 Button("Open Settings") {
                     NotificationCenter.default.post(name: .openSettings, object: nil)
                 }
-                .keyboardShortcut(",", modifiers: .command)
             }
             CommandGroup(after: .windowArrangement) {
                 Button("View Preview") {
@@ -70,6 +69,11 @@ extension Notification.Name {
     static let applyBold = Notification.Name("applyBold")
     static let applyStrikethrough = Notification.Name("applyStrikethrough")
     static let applyLink = Notification.Name("applyLink")
+    static let applyHeading = Notification.Name("applyHeading")
+    static let applyCode = Notification.Name("applyCode")
+    static let applyCodeBlock = Notification.Name("applyCodeBlock")
+    static let applyImage = Notification.Name("applyImage")
     static let openSettings = Notification.Name("openSettings")
     static let showPreview = Notification.Name("showPreview")
+    static let uploadImage = Notification.Name("uploadImage")
 }
