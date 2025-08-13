@@ -54,8 +54,16 @@ final class ShelfImage {
 }
 
 // Add this new struct for posts
-struct Post: Identifiable {
+struct Post: Identifiable, Codable {
     let id: String
     let title: String
     let slug: String
+    let lastUsed: Date?
+    
+    init(id: String, title: String, slug: String, lastUsed: Date? = nil) {
+        self.id = id
+        self.title = title
+        self.slug = slug
+        self.lastUsed = lastUsed
+    }
 } 

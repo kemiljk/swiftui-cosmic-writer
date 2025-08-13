@@ -10,15 +10,90 @@ import CosmicSDK
 import SwiftData
 import FoundationModels
 
+// Post cache for persistence and recently used posts
+class PostCache: ObservableObject {
+    @Published var posts: [Post] = []
+    @Published var recentlyUsed: [Post] = []
+    
+    private let userDefaults = UserDefaults.standard
+    private let recentlyUsedKey = "recentlyUsedPosts"
+    private let maxRecentlyUsed = 10
+    
+    init() {
+        loadRecentlyUsed()
+    }
+    
+    func addPost(_ post: Post) {
+        // Update existing post or add new one
+        if let index = posts.firstIndex(where: { $0.id == post.id }) {
+            posts[index] = post
+        } else {
+            posts.append(post)
+        }
+        
+        // Mark as recently used
+        markAsUsed(post)
+    }
+    
+    func markAsUsed(_ post: Post) {
+        // Create a new post with current timestamp
+        let updatedPost = Post(id: post.id, title: post.title, slug: post.slug, lastUsed: Date())
+        
+        // Remove from recently used if already there
+        recentlyUsed.removeAll { $0.id == post.id }
+        
+        // Add to front of recently used
+        recentlyUsed.insert(updatedPost, at: 0)
+        
+        // Keep only the most recent posts
+        if recentlyUsed.count > maxRecentlyUsed {
+            recentlyUsed = Array(recentlyUsed.prefix(maxRecentlyUsed))
+        }
+        
+        // Update the main posts array
+        if let index = posts.firstIndex(where: { $0.id == post.id }) {
+            posts[index] = updatedPost
+        }
+        
+        saveRecentlyUsed()
+    }
+    
+    func getPostsWithRecentFirst() -> [Post] {
+        // Combine recently used with all posts, removing duplicates
+        var result = recentlyUsed
+        let remainingPosts = posts.filter { post in
+            !recentlyUsed.contains { $0.id == post.id }
+        }
+        result.append(contentsOf: remainingPosts)
+        return result
+    }
+    
+    private func loadRecentlyUsed() {
+        if let data = userDefaults.data(forKey: recentlyUsedKey),
+           let decoded = try? JSONDecoder().decode([Post].self, from: data) {
+            recentlyUsed = decoded
+        }
+    }
+    
+    private func saveRecentlyUsed() {
+        if let encoded = try? JSONEncoder().encode(recentlyUsed) {
+            userDefaults.set(encoded, forKey: recentlyUsedKey)
+        }
+    }
+}
+
 // Add PostSuggestionOverlay view before ContentView
 struct PostSuggestionOverlay: View {
     let posts: [Post]
     let searchText: String
     let onSelect: (Post) -> Void
+    let onDismiss: () -> Void
     @State private var selectedIndex: Int = 0
+    @FocusState private var isFocused: Bool
     
     var filteredPosts: [Post] {
         if searchText.isEmpty {
+            // Use the posts array which should already be sorted by PostCache
             return Array(posts.prefix(5))
         } else {
             return posts.filter { post in
@@ -41,25 +116,71 @@ struct PostSuggestionOverlay: View {
                                     .font(.subheadline)
                                     .foregroundStyle(.primary)
                                     .lineLimit(1)
-                                Text(post.slug)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
+                                HStack(spacing: 4) {
+                                    Text(post.slug)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                    if post.lastUsed != nil {
+                                        Image(systemName: "clock")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                             }
                             Spacer()
+                            if index == selectedIndex {
+                                Image(systemName: "checkmark")
+                                    .font(.caption)
+                                    .foregroundStyle(.accent)
+                            }
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(index == selectedIndex ? Color.accentColor.opacity(0.1) : Color.clear)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(index == selectedIndex ? Color.accentColor.opacity(0.15) : Color.clear)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(index == selectedIndex ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
+                                )
+                        )
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .onTapGesture {
+                        selectedIndex = index
+                        onSelect(post)
+                    }
                 }
             }
             .padding(.vertical, 4)
             .frame(maxWidth: 300)
             .glassEffect(in: .rect(cornerRadius: 16))
             .shadow(radius: 8)
+            .onAppear {
+                isFocused = true
+                selectedIndex = 0
+            }
+            .focused($isFocused)
+            .onKeyPress(.upArrow) {
+                selectedIndex = max(0, selectedIndex - 1)
+                return .handled
+            }
+            .onKeyPress(.downArrow) {
+                selectedIndex = min(filteredPosts.count - 1, selectedIndex + 1)
+                return .handled
+            }
+            .onKeyPress(.return) {
+                if selectedIndex < filteredPosts.count {
+                    onSelect(filteredPosts[selectedIndex])
+                }
+                return .handled
+            }
+            .onKeyPress(.escape) {
+                onDismiss()
+                return .handled
+            }
         }
     }
 }
@@ -78,6 +199,104 @@ struct ContentView: View {
 
 #if os(iOS)
 // Move ImageShelf before iOSContentView
+struct ReviewSheet: View {
+    let originalText: String
+    let proposedText: String
+    let onAccept: () -> Void
+    let onReject: () -> Void
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Proposed changes")
+                            .font(.headline)
+                        Text(proposedText)
+                            .textSelection(.enabled)
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        
+                        DisclosureGroup("Original") {
+                            Text(originalText)
+                                .textSelection(.enabled)
+                                .font(.body)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .background(.thinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                    .padding()
+                }
+                HStack {
+                    Button("Reject") { onReject() }
+                        .buttonStyle(.bordered)
+                    Spacer()
+                    Button("Accept") { onAccept() }
+                        .buttonStyle(.borderedProminent)
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+            }
+            .navigationTitle("Review AI Edit")
+        }
+    }
+}
+
+struct ReviewOverlay: View {
+    let originalText: String
+    let proposedText: String
+    let onAccept: () -> Void
+    let onReject: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("AI suggestion ready")
+                    .font(.headline)
+                Spacer()
+                Button(action: onReject) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal)
+            
+            ScrollView {
+                Text(proposedText)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .frame(maxHeight: 260)
+            .padding(.horizontal)
+            
+            HStack {
+                Button("Compare…") { onReject() }
+                    .buttonStyle(.bordered)
+                Spacer()
+                Button("Reject") { onReject() }
+                    .buttonStyle(.bordered)
+                Button("Accept") { onAccept() }
+                    .buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal)
+            .padding(.bottom)
+        }
+        .padding(.vertical)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(radius: 8)
+        .padding()
+    }
+}
+
 struct ImageShelf: View {
     let onImageDropped: (URL) -> Void
     let onImageClick: (String, String) -> Void
@@ -208,6 +427,10 @@ struct iOSContentView: View {
     @State private var isGeneratingContent: Bool = false
     @State private var showGeneratingToast: Bool = false
     @State private var editorModel = HighlightedTextModel()
+    @State private var pendingAIText: String? = nil
+    @State private var showReviewSheet: Bool = false
+    @State private var pendingAIText: String? = nil
+    @State private var showReviewSheet: Bool = false
     @State private var showEditInput: Bool = false
     @State private var editText: String = ""
     @State private var generationTask: Task<Void, Never>? = nil
@@ -221,7 +444,7 @@ struct iOSContentView: View {
     @State private var showPostSuggestions = false
     @State private var atSymbolPosition: Int? = nil
     @State private var postSearchText = ""
-    @State private var allPosts: [Post] = []
+    @StateObject private var postCache = PostCache()
     @State private var suggestionPosition: CGPoint = .zero
     
     let device = UIDevice.current.userInterfaceIdiom
@@ -252,40 +475,29 @@ struct iOSContentView: View {
     
     private var instructions: String {
         """
-        You are Karl Emil James Koch, you craft compelling content, weaving a narrative centred on AI, product development, and occasionally the fusion of design and engineering when it's relevant. Your job is to convey ideas with clarity and engage readers without dividing the content into sections with headings.
-        
-        Guidelines to follow:
-        1. Adopt a conversational yet insightful tone, balancing depth with clarity.
-        2. Dive into the overlap of design and engineering, especially AI and search products, only when it naturally fits.
-        3. Prioritise taste and human judgement in discussions about design.
-        4. Explore how code democratization breaks down the barriers between design and development.
-        5. Emphasise real-world applications, steering clear of theoretical discussions.
-        6. Use crisp, precise language, maintaining British English spellings.
-        7. Organise thoughts for a seamless flow without using headings.
-        8. Back up points with examples and personal experiences as they fit.
-        9. Engage with both the technical and non-technical facets.
-        10. Balance between process focus and outcome thinking.
-        11. Stick to your unique voice without inquiries for edits.
-        
-        Writing style characteristics:
-        -  Keep it direct but personable
-        -  Focus on practicality and solutions
-        -  Maintain an engaging, yet approachable tone
-        -  Highlight real impacts and user experiences
-        -  Bring forward your experience in design and frontend work
-        -  Avoid using "AI" in titles
-        -  Avoid jargon and stay away from generic advice
-        -  Present your content as complete—no need for user edits
-        -  Refer to "User" only when discussing UX/UI
-        -  Integrate Design and Engineering only when it's organic to the topic
-        
-        Avoid:
-        -  Digressions into overly complex theory
-        -  Cliché openings about change and dynamics
-        -  Use of excessive technical language
-        -  Exit explanations—implement changes directly
-        
-        The content should be a continuation of your existing body of work, fitting seamlessly into your established opinions and views on AI and product development. Always use Markdown for formatting.
+        You write as Karl Emil James Koch. Produce clear, compelling prose centred on product development and the pragmatic use of AI, with design–engineering overlap only when it genuinely adds value.
+
+        Style and tone:
+        - Conversational, direct, and grounded in real experience
+        - British English spelling; active voice; varied sentence length
+        - Prefer specifics over abstractions; show, don't just tell
+        - Use lists only when they improve clarity; avoid formal headings unless already present or explicitly requested
+
+        Approach:
+        1) Identify the core idea and tighten the narrative around it.
+        2) Improve clarity and flow; remove filler and repetition.
+        3) Preserve the author's voice and intent; maintain existing structure unless it clearly harms readability.
+        4) Keep length similar unless brevity improves quality.
+
+        Reliability:
+        - Do not invent facts, quotes, links, or statistics.
+        - If a claim is uncertain, keep it qualitative or mark it for verification like [verify].
+        - Keep code or technical details honest and minimal.
+
+        Output requirements:
+        - Markdown only, no preambles or explanations.
+        - No front matter, metadata, or headings unless present in the draft or explicitly requested.
+        - Maintain the author's established perspective and voice.
         """
     }
     
@@ -308,10 +520,15 @@ struct iOSContentView: View {
                     .overlay(alignment: .topLeading) {
                         if showPostSuggestions {
                             PostSuggestionOverlay(
-                                posts: allPosts,
+                                posts: postCache.getPostsWithRecentFirst(),
                                 searchText: postSearchText,
                                 onSelect: { post in
                                     insertPostReference(post)
+                                },
+                                onDismiss: {
+                                    showPostSuggestions = false
+                                    atSymbolPosition = nil
+                                    postSearchText = ""
                                 }
                             )
                             .offset(x: suggestionPosition.x, y: suggestionPosition.y)
@@ -357,6 +574,25 @@ struct iOSContentView: View {
                     .offset(y: toastOffset)
                     .animation(.spring(response: 0.3), value: toastOffset)
             }
+
+            if showReviewSheet, let pending = pendingAIText {
+                ReviewOverlay(
+                    originalText: document.text,
+                    proposedText: pending,
+                    onAccept: {
+                        document.text = pending
+                        editorModel.text = pending
+                        pendingAIText = nil
+                        showReviewSheet = false
+                        showToastMessage("Applied AI changes")
+                    },
+                    onReject: {
+                        pendingAIText = nil
+                        showReviewSheet = false
+                    }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 12) {
@@ -386,11 +622,22 @@ struct iOSContentView: View {
                                         
                                         let editPrompt = Prompt(
                                             """
-                                            Instruction: \(editText)
-                                            Content to edit: \(editorModel.text)
-                                            Apply the instruction to the content. If there is selected text, focus on editing only that part.
-                                            Selected text: \(selectedText)
-                                            Return only the edited content. Do not include any other text, explanation, narrative, or markdown formatting like '---'.
+                                            Task: Edit the provided draft. If there is selected text, only edit that portion and return the full document with the change applied.
+
+                                            Draft:
+                                            ---
+                                            \(editorModel.text)
+                                            ---
+
+                                            Selected segment (may be empty):
+                                            ---
+                                            \(selectedText)
+                                            ---
+
+                                            Constraints:
+                                            - Preserve voice, intent, and structure unless clarity requires minor adjustments.
+                                            - Keep length similar; remove filler.
+                                            - No explanations; return Markdown only.
                                             """
                                         )
                                         
@@ -403,8 +650,7 @@ struct iOSContentView: View {
                                             if Task.isCancelled {
                                                 break
                                             }
-                                            self.document.text = partial
-                                            self.editorModel.text = partial
+                                            pendingAIText = String(describing: partial)
                                         }
                                         
                                         editText = ""
@@ -413,6 +659,7 @@ struct iOSContentView: View {
                                     }
                                     
                                     isGeneratingContent = false
+                                    if pendingAIText != nil { showReviewSheet = true }
                                     generationTask = nil
                                 }
                             }
@@ -468,7 +715,24 @@ struct iOSContentView: View {
                                 do {
                                     isGeneratingContent = true
                                     
-                                    let prompt = Prompt("Using title: \(document.title)\n\nand any existing content:\n\(editorModel.text)\n\nPlease generate enhanced content that builds upon this foundation while maintaining its core message and style.")
+                                    let prompt = Prompt(
+                                        """
+                                        Task: Generate a refined draft based on the title and current content.
+
+                                        Title: \(document.title)
+
+                                        Current content:
+                                        ---
+                                        \(editorModel.text)
+                                        ---
+
+                                        Requirements:
+                                        - Keep the author's voice and intent.
+                                        - Improve clarity, flow, and specificity.
+                                        - Maintain structure unless a minor re-order clearly improves readability.
+                                        - No preambles or explanations; return Markdown only.
+                                        """
+                                    )
                                     
                                     let session = LanguageModelSession(
                                         instructions: instructions
@@ -479,14 +743,14 @@ struct iOSContentView: View {
                                         if Task.isCancelled {
                                             break
                                         }
-                                        self.document.text = partial
-                                        self.editorModel.text = partial
+                                        pendingAIText = String(describing: partial)
                                     }
                                 } catch {
                                     print("Generation error: \(error.localizedDescription)")
                                 }
                                 
                                 isGeneratingContent = false
+                                if pendingAIText != nil { showReviewSheet = true }
                                 generationTask = nil
                             }
                         }
@@ -500,75 +764,153 @@ struct iOSContentView: View {
                 .padding(.bottom, 16)
             }
         }
+        .sheet(isPresented: $showReviewSheet) {
+            if let pending = pendingAIText {
+                ReviewSheet(
+                    originalText: document.text,
+                    proposedText: pending,
+                    onAccept: {
+                        document.text = pending
+                        editorModel.text = pending
+                        pendingAIText = nil
+                        showReviewSheet = false
+                        showToastMessage("Applied AI changes")
+                    },
+                    onReject: {
+                        pendingAIText = nil
+                        showReviewSheet = false
+                    }
+                )
+                .frame(minWidth: 600, minHeight: 500)
+            }
+        }
         .navigationTitle(document.title)
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Text(statsText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
-                    Divider()
-                    
-                    // Add scheduled date section
-                    Section {
-                        if let date = scheduledDate {
-                            Label("Scheduled: \(date.formatted(date: .abbreviated, time: .shortened))", 
-                                  systemImage: "calendar.badge.clock")
-                                .font(.caption)
-                        }
-                        
-                        Button {
-                            showScheduleDatePicker = true
-                        } label: {
-                            Label(scheduledDate == nil ? "Schedule Post" : "Change Schedule", 
-                                  systemImage: "calendar")
-                        }
-                        
-                        if scheduledDate != nil {
-                            Button(role: .destructive) {
-                                scheduledDate = nil
-                            } label: {
-                                Label("Remove Schedule", systemImage: "calendar.badge.minus")
-                            }
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    withAnimation {
+                        focusMode.toggle()
+                    }
+                } label: {
+                    Image(systemName: focusMode ? "eye.slash" : "eye")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help(focusMode ? "Show preview" : "Hide preview")
+            }
+            
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    showEditInput.toggle()
+                } label: {
+                    Image(systemName: "character.textbox")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isGeneratingContent)
+                .help("Edit with AI")
+                .opacity(isGeneratingContent ? 0.5 : 1.0)
+            }
+            
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    if isGeneratingContent {
+                        // Stop generation
+                        generationTask?.cancel()
+                        generationTask = nil
+                        isGeneratingContent = false
+                        showGeneratingToast = false
+                    } else {
+                        // Start generation
+                        generationTask = Task {
+                            await generateContent()
                         }
                     }
-                    
-                    Divider()
-                    
-                    Menu {
-                        ForEach(PostTag.allCases, id: \.self) { postTag in
-                            Button {
-                                tag = postTag.rawValue
-                            } label: {
-                                HStack {
-                                    Text(postTag.title)
-                                    Spacer()
-                                    if tag == postTag.rawValue {
-                                        Image(systemName: "checkmark")
-                                    }
+                } label: {
+                    if isGeneratingContent {
+                        Image(systemName: "stop.fill")
+                    } else {
+                        Image(systemName: "wand.and.stars")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help(isGeneratingContent ? "Stop generation" : "Generate content with AI")
+            }
+            
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    ForEach(PostTag.allCases, id: \.self) { postTag in
+                        Button {
+                            tag = postTag.rawValue
+                        } label: {
+                            HStack {
+                                Text(postTag.title)
+                                Spacer()
+                                if tag == postTag.rawValue {
+                                    Image(systemName: "checkmark")
                                 }
                             }
                         }
-                    } label: {
-                        Label(tag.capitalized, systemImage: "tag")
                     }
-                    
-                    Button {
-                        openSettings = true
-                        modal.impactOccurred()
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                    
                 } label: {
-                    Image(systemName: "ellipsis")
+                    HStack(spacing: 6) {
+                        Image(systemName: "tag")
+                        Text(tag.capitalized)
+                    }
                 }
             }
             
-            ToolbarItem(placement: .confirmationAction) {
-                Button(role: .confirm) {
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    if let date = scheduledDate {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Scheduled for:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(date.formatted(date: .abbreviated, time: .shortened))
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        
+                        Divider()
+                    }
+                    
+                    Button {
+                        showScheduleDatePicker = true
+                    } label: {
+                        Label(scheduledDate == nil ? "Schedule Post" : "Change Schedule", 
+                              systemImage: "calendar.badge.plus")
+                    }
+                    
+                    if scheduledDate == nil {
+                        Button {
+                            scheduledDate = Date()
+                        } label: {
+                            Label("Schedule for now", systemImage: "clock")
+                        }
+                    }
+                    
+                    if scheduledDate != nil {
+                        Button(role: .destructive) {
+                            scheduledDate = nil
+                        } label: {
+                            Label("Remove Schedule", systemImage: "calendar.badge.minus")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: scheduledDate == nil ? "calendar" : "calendar.badge.clock")
+                        Text(scheduledDate == nil ? "Schedule" : "Scheduled")
+                    }
+                    .foregroundStyle(scheduledDate == nil ? .secondary : .primary)
+                }
+            }
+            
+            ToolbarItem(placement: .primaryAction) {
+                Button {
                     self.isSending = true
                     Task {
                         await uploadPost()
@@ -576,68 +918,70 @@ struct iOSContentView: View {
                 } label: {
                     if isSending {
                         ProgressView()
+                            .controlSize(.small)
                     } else {
-                        Image(systemName: "arrow.up")
-                    }
-                }
-                .frame(width: 24, height: 24)
-            }
-        }
-        .sheet(isPresented: $openPreview) {
-            PreviewView(document: document)
-                .padding(.top, 24)
-        }
-        .sheet(isPresented: $openSettings) {
-            SettingsView()
-                .presentationDetents([.medium, .large])
-        }
-        .sheet(isPresented: $showImagePicker) {
-            ImagePicker { url in
-                uploadImage(url)
-            }
-        }
-        .sheet(isPresented: $showScheduleDatePicker) {
-            NavigationStack {
-                VStack {
-                    DatePicker("Schedule for", 
-                              selection: Binding(
-                                get: { scheduledDate ?? Date() },
-                                set: { scheduledDate = $0 }
-                              ),
-                              in: Date()...,
-                              displayedComponents: [.date, .hourAndMinute])
-                        .datePickerStyle(.graphical)
-                        .padding()
-                    
-                    Spacer()
-                }
-                .navigationTitle("Schedule Post")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            showScheduleDatePicker = false
-                        }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") {
-                            if scheduledDate == nil {
-                                scheduledDate = Date()
-                            }
-                            showScheduleDatePicker = false
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.up.circle.fill")
+                            Text("Publish")
                         }
                     }
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+                .help("Publish post")
             }
         }
-
         .onAppear {
             setupNotificationObservers()
-            setupPasteInterceptor()
-            loadPosts()
         }
         .onDisappear {
             observers.forEach { NotificationCenter.default.removeObserver($0) }
+        }
+        .sheet(isPresented: $openSettings) {
+            SettingsView()
+                .frame(width: 400, height: 300)
+        }
+        .sheet(isPresented: $showEditInput) {
+            VStack(spacing: 16) {
+                Text("Edit Instructions")
+                    .font(.headline)
+                
+                TextField("Describe your edits...", text: $editText, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(3...8)
+                
+                HStack {
+                    Button("Cancel") {
+                        showEditInput = false
+                        editText = ""
+                    }
+                    
+                    Spacer()
+                    
+                    Button("Apply Edit") {
+                        Task {
+                            showEditInput = false
+                            await performEdit()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(editText.isEmpty)
+                }
+            }
+            .padding()
+            .frame(width: 400, height: 200)
+        }
+        .sheet(isPresented: $showPostPicker) {
+            PostPicker(isPresented: $showPostPicker) { post in
+                insertPostReference(post)
+            }
+            .frame(width: 500, height: 600)
+        }
+        .sheet(isPresented: $showScheduleDatePicker) {
+            CustomScheduleView(
+                scheduledDate: $scheduledDate,
+                isPresented: $showScheduleDatePicker
+            )
         }
         .onChange(of: showToast) { _, newValue in
             if newValue {
@@ -655,6 +999,15 @@ struct iOSContentView: View {
                     }
                 }
             }
+        }
+        .onKeyPress(.escape) {
+            if showPostSuggestions {
+                showPostSuggestions = false
+                atSymbolPosition = nil
+                postSearchText = ""
+                return .handled
+            }
+            return .ignored
         }
     }
 
@@ -1132,25 +1485,6 @@ struct iOSContentView: View {
         }
     }
 
-    private func generateContent() async {
-        isGeneratingContent = true
-        showGeneratingToast = true
-        
-        ContentGenerationService.generateContent(title: document.title, content: document.text) { result in
-            Task { @MainActor in
-                switch result {
-                case .success(let generatedContent):
-                    document.text = generatedContent
-                    showToastMessage("Content generated successfully")
-                case .failure(let error):
-                    showToastMessage(error.localizedDescription)
-                }
-                isGeneratingContent = false
-                showGeneratingToast = false
-            }
-        }
-    }
-
     private func checkForAtSymbol(in text: String) {
         let currentPosition = cursorPosition
         
@@ -1193,8 +1527,25 @@ struct iOSContentView: View {
                     postSearchText = ""
                     showPostSuggestions = true
                     
-                    // Calculate position for overlay (simplified for now)
-                    suggestionPosition = CGPoint(x: 20, y: 40)
+                    // Calculate position for overlay near caret on macOS using NSTextView
+                    #if os(macOS)
+                    if let tv = textView {
+                        let caretRange = tv.selectedRange()
+                        if let layoutManager = tv.layoutManager, let textContainer = tv.textContainer {
+                            var glyphIndex = layoutManager.glyphIndexForCharacter(at: max(caretRange.location, 0))
+                            glyphIndex = min(glyphIndex, max(layoutManager.numberOfGlyphs - 1, 0))
+                            var rect = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyphIndex, length: 0), in: textContainer)
+                            rect = rect.offsetBy(dx: tv.textContainerInset.width, dy: tv.textContainerInset.height)
+                            suggestionPosition = CGPoint(x: rect.origin.x, y: rect.maxY + 6)
+                        } else {
+                            suggestionPosition = CGPoint(x: 12, y: 28)
+                        }
+                    } else {
+                        suggestionPosition = CGPoint(x: 12, y: 28)
+                    }
+                    #else
+                    suggestionPosition = caretRelativePosition(in: text)
+                    #endif
                 }
             }
         }
@@ -1205,7 +1556,8 @@ struct iOSContentView: View {
               let atPosition = atSymbolPosition else { return }
         
         // Calculate the range to replace (from @ to current position)
-        let replaceRange = NSRange(location: atPosition, length: cursorPosition - atPosition)
+        let safeCursor = max(cursorPosition, atPosition)
+        let replaceRange = NSRange(location: atPosition, length: safeCursor - atPosition)
         
         // Create the markdown link
         let markdownLink = "[\(post.title)](https://karlkoch.com/writings/\(post.slug))"
@@ -1214,23 +1566,33 @@ struct iOSContentView: View {
         if let start = textView.position(from: textView.beginningOfDocument, offset: replaceRange.location),
            let end = textView.position(from: start, offset: replaceRange.length),
            let textRange = textView.textRange(from: start, to: end) {
-            
             textView.replace(textRange, withText: markdownLink)
-            
-            // Update document
             document.text = textView.text
-            
-            // Move cursor to end of inserted link
             let newPosition = atPosition + markdownLink.count
             if let position = textView.position(from: textView.beginningOfDocument, offset: newPosition) {
                 textView.selectedTextRange = textView.textRange(from: position, to: position)
             }
         }
         
+        // Mark post as used in cache
+        postCache.markAsUsed(post)
+        
         // Reset
         showPostSuggestions = false
         atSymbolPosition = nil
         postSearchText = ""
+    }
+
+    private func caretRelativePosition(in text: String) -> CGPoint {
+        // Basic heuristic: place overlay near the current line start, slightly below
+        // For iOS, we don't have direct caret rect here; this keeps UI consistent
+        let lineHeight: CGFloat = 24
+        let x: CGFloat = 12
+        // Estimate line number by counting newlines up to cursorPosition
+        let upToCursor = String(text.prefix(cursorPosition))
+        let lineIndex = upToCursor.filter { $0 == "\n" }.count
+        let y = CGFloat(lineIndex + 1) * lineHeight
+        return CGPoint(x: x, y: y)
     }
     
     private func loadPosts() {
@@ -1244,7 +1606,7 @@ struct iOSContentView: View {
             Task { @MainActor in
                 switch result {
                 case .success(let response):
-                    self.allPosts = response.objects
+                    self.postCache.posts = response.objects
                         .filter { $0.type == "writings" }
                         .map { Post(id: $0.id!, title: $0.title, slug: $0.slug!) }
                 case .failure(let error):
@@ -1349,6 +1711,458 @@ struct ImageDropDelegate: DropDelegate {
 #endif
 
 #if os(macOS)
+// Custom Schedule View
+struct CustomScheduleView: View {
+    @Binding var scheduledDate: Date?
+    @Binding var isPresented: Bool
+    @State private var selectedDate: Date
+    @State private var selectedTime: Date
+    @State private var currentMonth: Date
+    @State private var showingTimePicker = false
+    
+    init(scheduledDate: Binding<Date?>, isPresented: Binding<Bool>) {
+        self._scheduledDate = scheduledDate
+        self._isPresented = isPresented
+        
+        let initialDate = scheduledDate.wrappedValue ?? Date()
+        self._selectedDate = State(initialValue: initialDate)
+        self._selectedTime = State(initialValue: initialDate)
+        self._currentMonth = State(initialValue: initialDate)
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Schedule Post")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button {
+                    isPresented = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.title2)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 20)
+            
+            Divider()
+            
+            // Content
+            HStack(spacing: 0) {
+                // Calendar Section
+                VStack(spacing: 16) {
+                    // Month Navigation
+                    HStack {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                currentMonth = Calendar.current.date(byAdding: .month, value: -1, to: currentMonth) ?? currentMonth
+                            }
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    Circle()
+                                        .fill(.clear)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Spacer()
+                        
+                        Text(currentMonth.formatted(.dateTime.month(.wide).year()))
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            ))
+                        
+                        Spacer()
+                        
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                currentMonth = Calendar.current.date(byAdding: .month, value: 1, to: currentMonth) ?? currentMonth
+                            }
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    Circle()
+                                        .fill(.clear)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    // Calendar Grid
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
+                        // Day headers
+                        ForEach(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"], id: \.self) { day in
+                            Text(day)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.secondary)
+                                .frame(height: 24)
+                        }
+                        
+                        // Calendar days
+                        ForEach(calendarDays, id: \.self) { date in
+                            if let date = date {
+                                                                 Button {
+                                     withAnimation(.easeInOut(duration: 0.2)) {
+                                         selectedDate = date
+                                         updateSelectedDateTime()
+                                     }
+                                 } label: {
+                                     Text("\(Calendar.current.component(.day, from: date))")
+                                         .font(.subheadline)
+                                         .fontWeight(.medium)
+                                         .frame(width: 32, height: 32)
+                                         .background(
+                                             Circle()
+                                                 .fill(isSameDay(date, selectedDate) ? Color.accentColor : Color.clear)
+                                         )
+                                         .foregroundStyle(isSameDay(date, selectedDate) ? .white : .primary)
+                                         .scaleEffect(isSameDay(date, selectedDate) ? 1.1 : 1.0)
+                                         .animation(.easeInOut(duration: 0.2), value: isSameDay(date, selectedDate))
+                                 }
+                                 .buttonStyle(.plain)
+                            } else {
+                                Text("")
+                                    .frame(width: 32, height: 24)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .frame(width: 280)
+                .padding(.vertical, 20)
+                
+                Divider()
+                
+                // Time Section
+                VStack(spacing: 20) {
+                    Text("Time")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                    
+                    // Time Display
+                    VStack(spacing: 8) {
+                        Text(selectedTime.formatted(.dateTime.hour().minute()))
+                            .font(.system(size: 48, weight: .light, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .animation(.easeInOut(duration: 0.2), value: selectedTime)
+                        
+                        Text(selectedTime.formatted(.dateTime.weekday(.wide)))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .animation(.easeInOut(duration: 0.2), value: selectedDate)
+                        
+                        Text(selectedDate.formatted(.dateTime.month(.wide).day().year()))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .animation(.easeInOut(duration: 0.2), value: selectedDate)
+                    }
+                    .padding(.vertical, 20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .padding(.horizontal, 16)
+                    
+                    // Time Picker
+                    VStack(spacing: 16) {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Hour")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                
+                                Picker("Hour", selection: Binding(
+                                    get: { Calendar.current.component(.hour, from: selectedTime) },
+                                    set: { newHour in
+                                        selectedTime = Calendar.current.date(bySettingHour: newHour, minute: Calendar.current.component(.minute, from: selectedTime), second: 0, of: selectedTime) ?? selectedTime
+                                        updateSelectedDateTime()
+                                    }
+                                )) {
+                                    ForEach(0..<24, id: \.self) { hour in
+                                        Text("\(hour)").tag(hour)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .frame(width: 80)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Minute")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                
+                                Picker("Minute", selection: Binding(
+                                    get: { Calendar.current.component(.minute, from: selectedTime) },
+                                    set: { newMinute in
+                                        selectedTime = Calendar.current.date(bySettingHour: Calendar.current.component(.hour, from: selectedTime), minute: newMinute, second: 0, of: selectedTime) ?? selectedTime
+                                        updateSelectedDateTime()
+                                    }
+                                )) {
+                                    ForEach([0, 15, 30, 45], id: \.self) { minute in
+                                        Text(String(format: "%02d", minute)).tag(minute)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .frame(width: 80)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    Spacer()
+                }
+                .frame(width: 200)
+                .padding(.vertical, 20)
+            }
+            
+            Divider()
+            
+            // Footer
+            HStack(spacing: 16) {
+                Button("Cancel") {
+                    isPresented = false
+                }
+                .buttonStyle(.bordered)
+                
+                Spacer()
+                
+                Button("Schedule Post") {
+                    scheduledDate = selectedDate
+                    isPresented = false
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedDate < Date())
+                
+                if selectedDate < Date() {
+                    Text("Please select a future date and time")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+        }
+        .frame(width: 500, height: 600)
+        .background(.background)
+    }
+    
+    private var calendarDays: [Date?] {
+        let calendar = Calendar.current
+        let startOfMonth = calendar.dateInterval(of: .month, for: currentMonth)?.start ?? currentMonth
+        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: startOfMonth)?.start ?? startOfMonth
+        
+        var days: [Date?] = []
+        let endDate = calendar.date(byAdding: .month, value: 1, to: startOfMonth) ?? startOfMonth
+        
+        var currentDate = startOfWeek
+        while currentDate < endDate || days.count < 42 {
+            if currentDate < startOfMonth || currentDate >= endDate {
+                days.append(nil)
+            } else {
+                days.append(currentDate)
+            }
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        }
+        
+        return days
+    }
+    
+    private func isSameDay(_ date1: Date, _ date2: Date) -> Bool {
+        Calendar.current.isDate(date1, inSameDayAs: date2)
+    }
+    
+    private func updateSelectedDateTime() {
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: selectedTime)
+        let minute = calendar.component(.minute, from: selectedTime)
+        
+        selectedDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: selectedDate) ?? selectedDate
+    }
+}
+
+// Add PostPicker component before MacContentView
+struct PostPicker: View {
+    @Binding var isPresented: Bool
+    let onSelect: (Post) -> Void
+    @State private var searchText = ""
+    @State private var allPosts: [Post] = []
+    
+    var filteredPosts: [Post] {
+        if searchText.isEmpty {
+            return allPosts
+        } else {
+            return allPosts.filter { post in
+                post.title.localizedCaseInsensitiveContains(searchText) ||
+                post.slug.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Select Post Reference")
+                .font(.headline)
+            
+            TextField("Search posts...", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+            
+            List(filteredPosts, id: \.id) { post in
+                Button {
+                    onSelect(post)
+                    isPresented = false
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(post.title)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                        Text(post.slug)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+            }
+            
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    isPresented = false
+                }
+            }
+        }
+        .padding()
+        .onAppear {
+            loadPosts()
+        }
+    }
+    
+    private func loadPosts() {
+        // This will be populated by the parent view
+        // For now, we'll use an empty array
+        allPosts = []
+    }
+}
+
+struct ReviewSheet: View {
+    let originalText: String
+    let proposedText: String
+    let onAccept: () -> Void
+    let onReject: () -> Void
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Proposed changes")
+                            .font(.headline)
+                        Text(proposedText)
+                            .textSelection(.enabled)
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        
+                        DisclosureGroup("Original") {
+                            Text(originalText)
+                                .textSelection(.enabled)
+                                .font(.body)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .background(.thinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                    .padding()
+                }
+                HStack {
+                    Button("Reject") { onReject() }
+                        .buttonStyle(.bordered)
+                    Spacer()
+                    Button("Accept") { onAccept() }
+                        .buttonStyle(.borderedProminent)
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+            }
+            .navigationTitle("Review AI Edit")
+        }
+    }
+}
+
+struct ReviewOverlay: View {
+    let originalText: String
+    let proposedText: String
+    let onAccept: () -> Void
+    let onReject: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("AI suggestion ready")
+                    .font(.headline)
+                Spacer()
+                Button(action: onReject) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal)
+            
+            ScrollView {
+                Text(proposedText)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .frame(maxHeight: 260)
+            .padding(.horizontal)
+            
+            HStack {
+                Button("Compare…") { onReject() }
+                    .buttonStyle(.bordered)
+                Spacer()
+                Button("Reject") { onReject() }
+                    .buttonStyle(.bordered)
+                Button("Accept") { onAccept() }
+                    .buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal)
+            .padding(.bottom)
+        }
+        .padding(.vertical)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(radius: 8)
+        .padding()
+    }
+}
+
 // Add ImageShelf component before MacContentView
 struct ImageShelf: View {
     let onImageDropped: (URL) -> Void
@@ -1561,16 +2375,19 @@ struct MacContentView: View {
     @State private var showEditInput: Bool = false
     @State private var editText: String = ""
     @State private var generationTask: Task<Void, Never>? = nil
+    @State private var pendingAIText: String? = nil
+    @State private var showReviewSheet: Bool = false
     
     // Add state for scheduled date
     @State private var scheduledDate: Date? = nil
+    @State private var showScheduleDatePicker = false
     @State private var showPostPicker = false
     
     // Add state for inline suggestions
     @State private var showPostSuggestions = false
     @State private var atSymbolPosition: Int? = nil
     @State private var postSearchText = ""
-    @State private var allPosts: [Post] = []
+    @StateObject private var postCache = PostCache()
     @State private var suggestionPosition: CGPoint = .zero
     
     // Filter images for current document
@@ -1651,6 +2468,23 @@ struct MacContentView: View {
                             },
                             editorModel: $editorModel
                         )
+                        .overlay(alignment: .topLeading) {
+                            if showPostSuggestions {
+                                PostSuggestionOverlay(
+                                    posts: postCache.getPostsWithRecentFirst(),
+                                    searchText: postSearchText,
+                                    onSelect: { post in
+                                        insertPostReference(post)
+                                    },
+                                    onDismiss: {
+                                        showPostSuggestions = false
+                                        atSymbolPosition = nil
+                                        postSearchText = ""
+                                    }
+                                )
+                                .offset(x: suggestionPosition.x, y: suggestionPosition.y)
+                            }
+                        }
                         // Image shelf
                         ImageShelf(
                             onImageDropped: { url in
@@ -1693,6 +2527,29 @@ struct MacContentView: View {
                 }
             }
             
+            // Floating stats panel in bottom right corner, above image shelf
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(statsText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                            .scaleEffect(1.0)
+                            .animation(.easeInOut(duration: 0.2), value: statsText)
+                    }
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 80) // Position above the image shelf
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            
             if showToast {
                 ToastView(message: toastMessage)
                     .offset(y: toastOffset)
@@ -1717,79 +2574,71 @@ struct MacContentView: View {
                     .shadow(radius: 4)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.top, 16)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.vertical, 16)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            if showReviewSheet, let pending = pendingAIText {
+                ReviewOverlay(
+                    originalText: document.text,
+                    proposedText: pending,
+                    onAccept: {
+                        document.text = pending
+                        editorModel.text = pending
+                        pendingAIText = nil
+                        showReviewSheet = false
+                        showToastMessage("Applied AI changes")
+                    },
+                    onReject: {
+                        pendingAIText = nil
+                        showReviewSheet = false
+                    }
+                )
+                .padding()
+            }
+        }
+        .onKeyPress(.escape) {
+            if showPostSuggestions {
+                showPostSuggestions = false
+                atSymbolPosition = nil
+                postSearchText = ""
+                return .handled
+            }
+            return .ignored
+        }
+        .sheet(isPresented: $showReviewSheet) {
+            if let pending = pendingAIText {
+                ReviewSheet(
+                    originalText: document.text,
+                    proposedText: pending,
+                    onAccept: {
+                        document.text = pending
+                        editorModel.text = pending
+                        pendingAIText = nil
+                        showReviewSheet = false
+                        showToastMessage("Applied AI changes")
+                    },
+                    onReject: {
+                        pendingAIText = nil
+                        showReviewSheet = false
+                    }
+                )
+                .frame(minWidth: 600, minHeight: 500)
             }
         }
         .navigationTitle(document.title)
         .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Text(statsText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            // Add scheduled date items
-            ToolbarItem(placement: .automatic) {
-                if let date = scheduledDate {
-                    Text("Scheduled: \(date.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            
-            ToolbarItem(placement: .automatic) {
-                DatePicker("", 
-                          selection: Binding(
-                            get: { scheduledDate ?? Date() },
-                            set: { scheduledDate = $0 }
-                          ),
-                          in: Date()...,
-                          displayedComponents: [.date, .hourAndMinute])
-                    .labelsHidden()
-                    .opacity(scheduledDate == nil ? 0.7 : 1.0)
-                    .help(scheduledDate == nil ? "Schedule post" : "Change scheduled time")
-            }
-            
-            ToolbarItem(placement: .automatic) {
-                if scheduledDate != nil {
-                    Button {
-                        scheduledDate = nil
-                    } label: {
-                        Image(systemName: "xmark.circle")
-                    }
-                    .help("Remove schedule")
-                }
-            }
-            
-            ToolbarItem(placement: .automatic) {
-                Menu {
-                    ForEach(PostTag.allCases, id: \.self) { postTag in
-                        Button {
-                            tag = postTag.rawValue
-                        } label: {
-                            HStack {
-                                Text(postTag.title)
-                                Spacer()
-                                if tag == postTag.rawValue {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    Text(tag.capitalized)
-                }
-            }
-            
             ToolbarItem(placement: .automatic) {
                 Button {
                     withAnimation {
                         focusMode.toggle()
                     }
                 } label: {
-                    Image(systemName: "eye")
+                    Image(systemName: focusMode ? "eye.slash" : "eye")
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help(focusMode ? "Show preview" : "Hide preview")
             }
             
             ToolbarItem(placement: .automatic) {
@@ -1798,7 +2647,11 @@ struct MacContentView: View {
                 } label: {
                     Image(systemName: "character.textbox")
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 .disabled(isGeneratingContent)
+                .help("Edit with AI")
+                .opacity(isGeneratingContent ? 0.5 : 1.0)
             }
             
             ToolbarItem(placement: .automatic) {
@@ -1822,6 +2675,80 @@ struct MacContentView: View {
                         Image(systemName: "wand.and.stars")
                     }
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help(isGeneratingContent ? "Stop generation" : "Generate content with AI")
+            }
+            
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    ForEach(PostTag.allCases, id: \.self) { postTag in
+                        Button {
+                            tag = postTag.rawValue
+                        } label: {
+                            HStack {
+                                Text(postTag.title)
+                                Spacer()
+                                if tag == postTag.rawValue {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "tag")
+                        Text(tag.capitalized)
+                    }
+                }
+            }
+            
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    if let date = scheduledDate {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Scheduled for:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(date.formatted(date: .abbreviated, time: .shortened))
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        
+                        Divider()
+                    }
+                    
+                    Button {
+                        showScheduleDatePicker = true
+                    } label: {
+                        Label(scheduledDate == nil ? "Schedule Post" : "Change Schedule", 
+                              systemImage: "calendar.badge.plus")
+                    }
+                    
+                    if scheduledDate == nil {
+                        Button {
+                            scheduledDate = Date()
+                        } label: {
+                            Label("Schedule for now", systemImage: "clock")
+                        }
+                    }
+                    
+                    if scheduledDate != nil {
+                        Button(role: .destructive) {
+                            scheduledDate = nil
+                        } label: {
+                            Label("Remove Schedule", systemImage: "calendar.badge.minus")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: scheduledDate == nil ? "calendar" : "calendar.badge.clock")
+                        Text(scheduledDate == nil ? "Schedule" : "Scheduled")
+                    }
+                    .foregroundStyle(scheduledDate == nil ? .secondary : .primary)
+                }
             }
             
             ToolbarItem(placement: .primaryAction) {
@@ -1835,11 +2762,15 @@ struct MacContentView: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Image(systemName: "arrow.up.circle.fill")
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.up.circle.fill")
+                            Text("Publish")
+                        }
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .frame(width: 24, height: 24)
+                .controlSize(.regular)
+                .help("Publish post")
             }
         }
         .onAppear {
@@ -1887,6 +2818,12 @@ struct MacContentView: View {
                 insertPostReference(post)
             }
             .frame(width: 500, height: 600)
+        }
+        .sheet(isPresented: $showScheduleDatePicker) {
+            CustomScheduleView(
+                scheduledDate: $scheduledDate,
+                isPresented: $showScheduleDatePicker
+            )
         }
         .onChange(of: showToast) { _, newValue in
             if newValue {
@@ -2108,18 +3045,36 @@ struct MacContentView: View {
         showGeneratingToast = true
         
         do {
-            let session = LanguageModelSession()
+            let prompt = Prompt(
+                """
+                Task: Generate a refined draft based on the title and current content.
+
+                Title: \(document.title)
+
+                Current content:
+                ---
+                \(editorModel.text)
+                ---
+
+                Requirements:
+                - Keep the author's voice and intent.
+                - Improve clarity, flow, and specificity.
+                - Maintain structure unless a minor re-order clearly improves readability.
+                - No preambles or explanations; return Markdown only.
+                """
+            )
+            
+            let session = LanguageModelSession(instructions: instructions)
             let stream = session.streamResponse(to: prompt)
             
             for try await partial in stream {
                 if Task.isCancelled {
                     break
                 }
-                self.document.text = partial
-                self.editorModel.text = partial
+                pendingAIText = partial.content
             }
             
-            showToastMessage("Content generated successfully")
+            if pendingAIText != nil { showReviewSheet = true }
         } catch {
             showToastMessage("Failed to generate content: \(error.localizedDescription)")
         }
@@ -2132,14 +3087,27 @@ struct MacContentView: View {
     private func performEdit() async {
         isGeneratingContent = true
         
-        let editPrompt = """
-        Instruction: \(editText)
-        Content to edit: \(editorModel.text)
-        Apply the instruction to the content. If there is selected text, focus on editing only that part.
-        Selected text: \(selectedText)
-        Return only the edited content. Do not include any other text, explanation, narrative, or markdown formatting like '---'.
-        """
-        
+        let editPrompt = Prompt(
+            """
+            Task: Edit the provided draft. If there is selected text, only edit that portion and return the full document with the change applied.
+
+            Draft:
+            ---
+            \(editorModel.text)
+            ---
+
+            Selected segment (may be empty):
+            ---
+            \(selectedText)
+            ---
+
+            Constraints:
+            - Preserve voice, intent, and structure unless clarity requires minor adjustments.
+            - Keep length similar; remove filler.
+            - No explanations; return Markdown only.
+            """
+        )
+
         do {
             let session = LanguageModelSession(instructions: instructions)
             let stream = session.streamResponse(to: editPrompt)
@@ -2148,12 +3116,11 @@ struct MacContentView: View {
                 if Task.isCancelled {
                     break
                 }
-                self.document.text = partial
-                self.editorModel.text = partial
+                pendingAIText = partial.content
             }
             
             editText = ""
-            showToastMessage("Content edited successfully")
+            if pendingAIText != nil { showReviewSheet = true }
         } catch {
             showToastMessage("Failed to edit content: \(error.localizedDescription)")
         }
@@ -2184,34 +3151,25 @@ struct MacContentView: View {
         }
     }
     
+    // macOS version - using NSTextView methods
     private func insertPostReference(_ post: Post) {
         guard let textView = textView,
               let atPosition = atSymbolPosition else { return }
         
-        // Calculate the range to replace (from @ to current position)
-        let replaceRange = NSRange(location: atPosition, length: cursorPosition - atPosition)
-        
-        // Create the markdown link
+        let safeCursor = max(cursorPosition, atPosition)
+        let replaceRange = NSRange(location: atPosition, length: safeCursor - atPosition)
         let markdownLink = "[\(post.title)](https://karlkoch.com/writings/\(post.slug))"
         
-        // Replace the @ and any text typed after it with the markdown link
-        if let start = textView.position(from: textView.beginningOfDocument, offset: replaceRange.location),
-           let end = textView.position(from: start, offset: replaceRange.length),
-           let textRange = textView.textRange(from: start, to: end) {
-            
-            textView.replace(textRange, withText: markdownLink)
-            
-            // Update document
-            document.text = textView.text
-            
-            // Move cursor to end of inserted link
-            let newPosition = atPosition + markdownLink.count
-            if let position = textView.position(from: textView.beginningOfDocument, offset: newPosition) {
-                textView.selectedTextRange = textView.textRange(from: position, to: position)
-            }
-        }
+        textView.shouldChangeText(in: replaceRange, replacementString: markdownLink)
+        textView.replaceCharacters(in: replaceRange, with: markdownLink)
+        textView.didChangeText()
+        document.text = textView.string
+        let newPosition = atPosition + markdownLink.count
+        textView.setSelectedRange(NSRange(location: newPosition, length: 0))
         
-        // Reset
+        // Mark post as used in cache
+        postCache.markAsUsed(post)
+        
         showPostSuggestions = false
         atSymbolPosition = nil
         postSearchText = ""
@@ -2222,13 +3180,13 @@ struct MacContentView: View {
         
         cosmic.find(type: "writings",
                     props: "id,title,slug,type",
-                    limit: "100",
+                    limit: 100,
                     status: .any
         ) { result in
             Task { @MainActor in
                 switch result {
                 case .success(let response):
-                    self.allPosts = response.objects
+                    self.postCache.posts = response.objects
                         .filter { $0.type == "writings" }
                         .map { Post(id: $0.id!, title: $0.title, slug: $0.slug!) }
                 case .failure(let error):

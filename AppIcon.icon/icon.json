@@ -6,7 +6,20 @@
       "layers" : [
         {
           "blend-mode" : "normal",
-          "fill" : "automatic",
+          "fill-specializations" : [
+            {
+              "value" : "automatic"
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "linear-gradient" : [
+                  "display-p3:0.21743,0.33562,0.96611,1.00000",
+                  "display-p3:0.55089,0.21221,0.96611,1.00000"
+                ]
+              }
+            }
+          ],
           "glass" : true,
           "image-name" : "AppIcon.svg",
           "name" : "AppIcon",
@@ -32,13 +45,40 @@
     },
     {
       "blur-material" : 1,
+      "hidden-specializations" : [
+        {
+          "value" : false
+        },
+        {
+          "idiom" : "square",
+          "value" : false
+        }
+      ],
       "layers" : [
         {
-          "blend-mode" : "normal",
+          "blend-mode-specializations" : [
+            {
+              "value" : "normal"
+            },
+            {
+              "appearance" : "tinted",
+              "value" : "normal"
+            }
+          ],
           "glass" : false,
           "hidden" : false,
           "image-name" : "Background.png",
           "name" : "Background",
+          "opacity-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : 0
+            },
+            {
+              "appearance" : "tinted",
+              "value" : 0
+            }
+          ],
           "position" : {
             "scale" : 0.5,
             "translation-in-points" : [

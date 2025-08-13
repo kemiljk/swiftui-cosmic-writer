@@ -1,13 +1,13 @@
 {
-  "originHash" : "3f5c9edf92542dca18481567793408e92d74ceb72153b827d6b620f9aca7a424",
+  "originHash" : "249175c141cfa93c96475987814591a698c851575be98f818f31717e1eb2c49b",
   "pins" : [
     {
-      "identity" : "cosmicsdkswift",
+      "identity" : "cosmic-sdk-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/cosmicjs/CosmicSDKSwift",
+      "location" : "https://github.com/cosmicjs/cosmic-sdk-swift.git",
       "state" : {
         "branch" : "main",
-        "revision" : "4722412d4f571323c728a59b38410acfbd56486c"
+        "revision" : "e2f7f08f77017410b9b33fa3d4246678ae8ba52e"
       }
     },
     {
