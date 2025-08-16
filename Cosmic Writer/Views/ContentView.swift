@@ -82,30 +82,72 @@ class PostCache: ObservableObject {
     }
 }
 
+
+
 // Add PostSuggestionOverlay view before ContentView
 struct PostSuggestionOverlay: View {
     let posts: [Post]
     let searchText: String
     let onSelect: (Post) -> Void
     let onDismiss: () -> Void
+    let onSearchTextChange: (String) -> Void
+    let isKeyboardVisible: Bool
     @State private var selectedIndex: Int = 0
-    @FocusState private var isFocused: Bool
+    @FocusState private var focused: Bool
     
     var filteredPosts: [Post] {
         if searchText.isEmpty {
-            // Use the posts array which should already be sorted by PostCache
-            return Array(posts.prefix(5))
+            // Show first 3 posts when no search text
+            return Array(posts.prefix(3))
         } else {
-            return posts.filter { post in
+            // Filter through ALL posts when searching, but only show first 3
+            let filtered = posts.filter { post in
                 post.title.localizedCaseInsensitiveContains(searchText) ||
                 post.slug.localizedCaseInsensitiveContains(searchText)
-            }.prefix(5).map { $0 }
+            }
+            print("Searching for '\(searchText)' - found \(filtered.count) posts out of \(posts.count) total, showing first 3")
+            return Array(filtered.prefix(3))
         }
     }
     
     var body: some View {
         if !filteredPosts.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
+                // Hidden TextField that captures navigation keys and updates search
+                TextField("", text: Binding(
+                    get: { searchText },
+                    set: { onSearchTextChange($0) }
+                ))
+                    .opacity(0)
+                    .frame(width: 1, height: 1)
+                    .focused($focused)
+                    .onKeyPress(.upArrow) {
+                        let newIndex = max(0, selectedIndex - 1)
+                        selectedIndex = newIndex
+                        print("Up arrow pressed, selectedIndex: \(selectedIndex)")
+                        return .handled
+                    }
+                    .onKeyPress(.downArrow) {
+                        let newIndex = min(filteredPosts.count - 1, selectedIndex + 1)
+                        selectedIndex = newIndex
+                        print("Down arrow pressed, selectedIndex: \(selectedIndex)")
+                        return .handled
+                    }
+                    .onKeyPress(.return) {
+                        print("Return pressed, selectedIndex: \(selectedIndex), filteredPosts.count: \(filteredPosts.count)")
+                        if selectedIndex < filteredPosts.count {
+                            let selectedPost = filteredPosts[selectedIndex]
+                            print("Selecting post: \(selectedPost.title)")
+                            onSelect(selectedPost)
+                            return .handled
+                        }
+                        return .ignored
+                    }
+                    .onKeyPress(.escape) {
+                        onDismiss()
+                        return .handled
+                    }
+                
                 ForEach(Array(filteredPosts.enumerated()), id: \.element.id) { index, post in
                     Button {
                         onSelect(post)
@@ -159,27 +201,15 @@ struct PostSuggestionOverlay: View {
             .glassEffect(in: .rect(cornerRadius: 16))
             .shadow(radius: 8)
             .onAppear {
-                isFocused = true
                 selectedIndex = 0
+                print("PostSuggestionOverlay appeared with \(filteredPosts.count) posts (searchText: '\(searchText)', total posts: \(posts.count))")
+                // Set focus to the hidden TextField for keyboard navigation
+                focused = true
             }
-            .focused($isFocused)
-            .onKeyPress(.upArrow) {
-                selectedIndex = max(0, selectedIndex - 1)
-                return .handled
-            }
-            .onKeyPress(.downArrow) {
-                selectedIndex = min(filteredPosts.count - 1, selectedIndex + 1)
-                return .handled
-            }
-            .onKeyPress(.return) {
-                if selectedIndex < filteredPosts.count {
-                    onSelect(filteredPosts[selectedIndex])
-                }
-                return .handled
-            }
-            .onKeyPress(.escape) {
-                onDismiss()
-                return .handled
+            .onChange(of: filteredPosts.count) { _, _ in
+                // Reset selection when filtered results change
+                selectedIndex = 0
+                print("Filtered posts changed, resetting selectedIndex to 0")
             }
         }
     }
@@ -429,8 +459,6 @@ struct iOSContentView: View {
     @State private var editorModel = HighlightedTextModel()
     @State private var pendingAIText: String? = nil
     @State private var showReviewSheet: Bool = false
-    @State private var pendingAIText: String? = nil
-    @State private var showReviewSheet: Bool = false
     @State private var showEditInput: Bool = false
     @State private var editText: String = ""
     @State private var generationTask: Task<Void, Never>? = nil
@@ -479,7 +507,8 @@ struct iOSContentView: View {
 
         Style and tone:
         - Conversational, direct, and grounded in real experience
-        - British English spelling; active voice; varied sentence length
+        - British English spelling and terminology ALWAYS (e.g., colour, centre, organisation, analyse, realise, programme, theatre, labour, defence, offence, licence, practice/practise, etc.)
+        - Active voice; varied sentence length
         - Prefer specifics over abstractions; show, don't just tell
         - Use lists only when they improve clarity; avoid formal headings unless already present or explicitly requested
 
@@ -498,6 +527,7 @@ struct iOSContentView: View {
         - Markdown only, no preambles or explanations.
         - No front matter, metadata, or headings unless present in the draft or explicitly requested.
         - Maintain the author's established perspective and voice.
+        - NEVER use American English spellings or terminology.
         """
     }
     
@@ -529,9 +559,14 @@ struct iOSContentView: View {
                                     showPostSuggestions = false
                                     atSymbolPosition = nil
                                     postSearchText = ""
-                                }
+                                },
+                                onSearchTextChange: { newText in
+                                    postSearchText = newText
+                                },
+                                isKeyboardVisible: isKeyboardVisible
                             )
                             .offset(x: suggestionPosition.x, y: suggestionPosition.y)
+                            .zIndex(1000) // Ensure it appears above other content
                         }
                     }
                     
@@ -562,10 +597,20 @@ struct iOSContentView: View {
                     // Check for @ symbol
                     checkForAtSymbol(in: newValue)
                 }
+                .onChange(of: isKeyboardVisible) { _, _ in
+                    // Update overlay position when keyboard visibility changes
+                    if showPostSuggestions {
+                        suggestionPosition = caretRelativePosition(in: document.text)
+                    }
+                }
                 .onChange(of: editorModel.text) { _, newValue in
                     if document.text != newValue {
                         document.text = newValue
                     }
+                }
+                .onChange(of: cursorPosition) {
+                    // Check for @ symbol when cursor position changes
+                    checkForAtSymbol(in: document.text)
                 }
             }
             
@@ -593,151 +638,54 @@ struct iOSContentView: View {
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-        }
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 12) {
-                // Edit input field
-                if showEditInput {
-                    VStack(spacing: 8) {
-                        TextField("Describe your edits...", text: $editText, axis: .vertical)
-                            .padding()
-                            .glassEffect(
-                                in: .rect(cornerRadius: 24, style: .continuous)
-                            )
-                        
-                        HStack {
-                            Spacer()
-                            Button("Cancel") {
-                                showEditInput = false
-                                editText = ""
-                            }
-                            .buttonStyle(.bordered)
-                            
-                            Button("Apply Edit") {
-                                showEditInput = false
-                                
-                                generationTask = Task {
-                                    do {
-                                        isGeneratingContent = true
-                                        
-                                        let editPrompt = Prompt(
-                                            """
-                                            Task: Edit the provided draft. If there is selected text, only edit that portion and return the full document with the change applied.
-
-                                            Draft:
-                                            ---
-                                            \(editorModel.text)
-                                            ---
-
-                                            Selected segment (may be empty):
-                                            ---
-                                            \(selectedText)
-                                            ---
-
-                                            Constraints:
-                                            - Preserve voice, intent, and structure unless clarity requires minor adjustments.
-                                            - Keep length similar; remove filler.
-                                            - No explanations; return Markdown only.
-                                            """
-                                        )
-                                        
-                                        let session = LanguageModelSession(
-                                            instructions: instructions
-                                        )
-                                        let stream = session.streamResponse(to: editPrompt)
-                                        
-                                        for try await partial in stream {
-                                            if Task.isCancelled {
-                                                break
-                                            }
-                                            pendingAIText = String(describing: partial)
-                                        }
-                                        
-                                        editText = ""
-                                    } catch {
-                                        print("Generation error: \(error.localizedDescription)")
-                                    }
-                                    
-                                    isGeneratingContent = false
-                                    if pendingAIText != nil { showReviewSheet = true }
-                                    generationTask = nil
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(editText.isEmpty)
-                        }
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .padding()
-                }
-            }
-            .animation(.spring(response: 0.3), value: showEditInput)
             
-            if !showEditInput {
-                HStack {
-                    Button {
-                        showImagePicker = true
-                    } label: {
-                        Image(systemName: "photo")
-                    }
-                    .controlSize(.extraLarge)
-                    .buttonStyle(.glass)
-                    Button {
-                        withAnimation {
-                            openPreview.toggle()
-                            modal.impactOccurred()
+            // Edit input overlay (appears above content, not affected by keyboard)
+            if showEditInput {
+                VStack(spacing: 12) {
+                    TextField("Describe your edits...", text: $editText, axis: .vertical)
+                        .padding()
+                        .glassEffect(
+                            in: .rect(cornerRadius: 24, style: .continuous)
+                        )
+                    
+                    HStack(spacing: 12) {
+                        Button("Cancel") {
+                            showEditInput = false
+                            editText = ""
                         }
-                    } label: {
-                        Image(systemName: "eye")
-                    }
-                    .controlSize(.extraLarge)
-                    .buttonStyle(.glass)
-                    Spacer()
-                    Button {
-                        withAnimation(.spring(response: 0.3)) {
-                            showEditInput.toggle()
-                        }
-                    } label: {
-                        Image(systemName: "character.textbox")
-                    }
-                    .disabled(isGeneratingContent)
-                    .controlSize(.extraLarge)
-                    .buttonStyle(.glass)
-                    Button {
-                        if isGeneratingContent {
-                            // Stop generation
-                            generationTask?.cancel()
-                            generationTask = nil
-                            isGeneratingContent = false
-                        } else {
-                            // Start generation
+                        .buttonStyle(.glass)
+                        
+                        Spacer()
+                        
+                        Button("Apply Edit") {
+                            showEditInput = false
+                            
                             generationTask = Task {
                                 do {
                                     isGeneratingContent = true
                                     
-                                    let prompt = Prompt(
+                                    let editPrompt = Prompt(
                                         """
-                                        Task: Generate a refined draft based on the title and current content.
+                                        Task: Edit the provided draft. If there is selected text, only edit that portion and return the full document with the change applied.
 
-                                        Title: \(document.title)
-
-                                        Current content:
-                                        ---
+                                        Draft:
                                         \(editorModel.text)
-                                        ---
 
-                                        Requirements:
-                                        - Keep the author's voice and intent.
-                                        - Improve clarity, flow, and specificity.
-                                        - Maintain structure unless a minor re-order clearly improves readability.
-                                        - No preambles or explanations; return Markdown only.
+                                        Selected segment (may be empty):
+                                        \(selectedText)
+
+                                        Constraints:
+                                        - Preserve voice, intent, and structure unless clarity requires minor adjustments.
+                                        - Keep length similar; remove filler.
+                                        - No explanations; return Markdown only.
+                                        - Do not include any --- markers in the output.
                                         """
                                     )
                                     
                                     let session = LanguageModelSession(
                                         instructions: instructions
                                     )
-                                    let stream = session.streamResponse(to: prompt)
+                                    let stream = session.streamResponse(to: editPrompt)
                                     
                                     for try await partial in stream {
                                         if Task.isCancelled {
@@ -745,6 +693,8 @@ struct iOSContentView: View {
                                         }
                                         pendingAIText = String(describing: partial)
                                     }
+                                    
+                                    editText = ""
                                 } catch {
                                     print("Generation error: \(error.localizedDescription)")
                                 }
@@ -754,15 +704,107 @@ struct iOSContentView: View {
                                 generationTask = nil
                             }
                         }
-                    } label: {
-                        Image( systemName: isGeneratingContent ? "stop.fill" : "sparkle")
+                        .buttonStyle(.glassProminent)
+                        .disabled(editText.isEmpty)
                     }
-                    .controlSize(.extraLarge)
-                    .buttonStyle(.glass)
                 }
-                .padding(.horizontal)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 16)
+                .animation(.spring(response: 0.3), value: showEditInput)
             }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Main toolbar buttons (always visible)
+            HStack {
+                Button {
+                    showImagePicker = true
+                } label: {
+                    Image(systemName: "photo")
+                }
+                .controlSize(.extraLarge)
+                .buttonStyle(.glass)
+                Button {
+                    withAnimation {
+                        openPreview.toggle()
+                        modal.impactOccurred()
+                    }
+                } label: {
+                    Image(systemName: "eye")
+                }
+                .controlSize(.extraLarge)
+                .buttonStyle(.glass)
+                Spacer()
+                Button {
+                    withAnimation(.spring(response: 0.3)) {
+                        showEditInput.toggle()
+                    }
+                } label: {
+                    Image(systemName: "character.textbox")
+                }
+                .disabled(isGeneratingContent)
+                .controlSize(.extraLarge)
+                .buttonStyle(.glass)
+                Button {
+                    if isGeneratingContent {
+                        // Stop generation
+                        generationTask?.cancel()
+                        generationTask = nil
+                        isGeneratingContent = false
+                    } else {
+                        // Start generation
+                        generationTask = Task {
+                            do {
+                                isGeneratingContent = true
+                                
+                                let prompt = Prompt(
+                                    """
+                                    Task: Generate a refined draft based on the title and current content.
+
+                                    Title: \(document.title)
+
+                                    Current content:
+                                    \(editorModel.text)
+
+                                    Requirements:
+                                    - Keep the author's voice and intent.
+                                    - Improve clarity, flow, and specificity.
+                                    - Maintain structure unless a minor re-order clearly improves readability.
+                                    - No preambles or explanations; return Markdown only.
+                                    - Do not include any --- markers in the output.
+                                    """
+                                )
+                                
+                                let session = LanguageModelSession(
+                                    instructions: instructions
+                                )
+                                let stream = session.streamResponse(to: prompt)
+                                
+                                for try await partial in stream {
+                                    if Task.isCancelled {
+                                        break
+                                    }
+                                    pendingAIText = String(describing: partial)
+                                }
+                            } catch {
+                                print("Generation error: \(error.localizedDescription)")
+                            }
+                            
+                            isGeneratingContent = false
+                            if pendingAIText != nil { showReviewSheet = true }
+                            generationTask = nil
+                        }
+                    }
+                } label: {
+                    Image( systemName: isGeneratingContent ? "stop.fill" : "sparkle")
+                }
+                .controlSize(.extraLarge)
+                .buttonStyle(.glass)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
         .sheet(isPresented: $showReviewSheet) {
             if let pending = pendingAIText {
@@ -786,59 +828,7 @@ struct iOSContentView: View {
         }
         .navigationTitle(document.title)
         .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    withAnimation {
-                        focusMode.toggle()
-                    }
-                } label: {
-                    Image(systemName: focusMode ? "eye.slash" : "eye")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help(focusMode ? "Show preview" : "Hide preview")
-            }
-            
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    showEditInput.toggle()
-                } label: {
-                    Image(systemName: "character.textbox")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(isGeneratingContent)
-                .help("Edit with AI")
-                .opacity(isGeneratingContent ? 0.5 : 1.0)
-            }
-            
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    if isGeneratingContent {
-                        // Stop generation
-                        generationTask?.cancel()
-                        generationTask = nil
-                        isGeneratingContent = false
-                        showGeneratingToast = false
-                    } else {
-                        // Start generation
-                        generationTask = Task {
-                            await generateContent()
-                        }
-                    }
-                } label: {
-                    if isGeneratingContent {
-                        Image(systemName: "stop.fill")
-                    } else {
-                        Image(systemName: "wand.and.stars")
-                    }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help(isGeneratingContent ? "Stop generation" : "Generate content with AI")
-            }
-            
-            ToolbarItem(placement: .automatic) {
+            ToolbarItemGroup(placement: .secondaryAction) {
                 Menu {
                     ForEach(PostTag.allCases, id: \.self) { postTag in
                         Button {
@@ -859,9 +849,7 @@ struct iOSContentView: View {
                         Text(tag.capitalized)
                     }
                 }
-            }
-            
-            ToolbarItem(placement: .automatic) {
+                
                 Menu {
                     if let date = scheduledDate {
                         VStack(alignment: .leading, spacing: 2) {
@@ -933,6 +921,7 @@ struct iOSContentView: View {
         }
         .onAppear {
             setupNotificationObservers()
+            loadPosts()
         }
         .onDisappear {
             observers.forEach { NotificationCenter.default.removeObserver($0) }
@@ -941,48 +930,7 @@ struct iOSContentView: View {
             SettingsView()
                 .frame(width: 400, height: 300)
         }
-        .sheet(isPresented: $showEditInput) {
-            VStack(spacing: 16) {
-                Text("Edit Instructions")
-                    .font(.headline)
-                
-                TextField("Describe your edits...", text: $editText, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(3...8)
-                
-                HStack {
-                    Button("Cancel") {
-                        showEditInput = false
-                        editText = ""
-                    }
-                    
-                    Spacer()
-                    
-                    Button("Apply Edit") {
-                        Task {
-                            showEditInput = false
-                            await performEdit()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(editText.isEmpty)
-                }
-            }
-            .padding()
-            .frame(width: 400, height: 200)
-        }
-        .sheet(isPresented: $showPostPicker) {
-            PostPicker(isPresented: $showPostPicker) { post in
-                insertPostReference(post)
-            }
-            .frame(width: 500, height: 600)
-        }
-        .sheet(isPresented: $showScheduleDatePicker) {
-            CustomScheduleView(
-                scheduledDate: $scheduledDate,
-                isPresented: $showScheduleDatePicker
-            )
-        }
+
         .onChange(of: showToast) { _, newValue in
             if newValue {
                 withAnimation {
@@ -1156,8 +1104,8 @@ struct iOSContentView: View {
             let stream = session.streamResponse(to: prompt)
             
             for try await partial in stream {
-                self.document.text = partial
-                self.editorModel.text = partial
+                self.document.text = partial.content
+                self.editorModel.text = partial.content
             }
         } catch {
             print(error.localizedDescription)
@@ -1229,7 +1177,7 @@ struct iOSContentView: View {
         do {
             // Generate AI content
             let summaryPrompt = "Summarise this text in a clear and concise way that captures the main points and key ideas:\n\n\(document.text). Use British English always."
-            let snippetPrompt = "Create a compelling 120-character or less snippet that captures the essence of this text and entices readers to read more:\n\n\(document.text). Do not include quotation marks. Use British English always."
+            let snippetPrompt = "Create a compelling 120-character or less snippet that captures the essence of this text and entices readers to read more:\n\n\(document.text). IMPORTANT: Do not include any quotation marks (\" or ') in the snippet. Use British English always."
             
             async let summary = cosmic.generateText(prompt: summaryPrompt)
             async let snippet = cosmic.generateText(prompt: snippetPrompt)
@@ -1484,6 +1432,91 @@ struct iOSContentView: View {
             }
         }
     }
+    
+    private func generateContent() async {
+        isGeneratingContent = true
+        showGeneratingToast = true
+        
+        do {
+            let prompt = Prompt(
+                """
+                Task: Generate a refined draft based on the title and current content.
+
+                Title: \(document.title)
+
+                Current content:
+                \(editorModel.text)
+
+                Requirements:
+                - Keep the author's voice and intent.
+                - Improve clarity, flow, and specificity.
+                - Maintain structure unless a minor re-order clearly improves readability.
+                - No preambles or explanations; return Markdown only.
+                - Do not include any --- markers in the output.
+                """
+            )
+            
+            let session = LanguageModelSession(instructions: instructions)
+            let stream = session.streamResponse(to: prompt)
+            
+            for try await partial in stream {
+                if Task.isCancelled {
+                    break
+                }
+                pendingAIText = partial.content
+            }
+            
+            if pendingAIText != nil { showReviewSheet = true }
+        } catch {
+            showToastMessage("Failed to generate content: \(error.localizedDescription)")
+        }
+        
+        isGeneratingContent = false
+        showGeneratingToast = false
+        generationTask = nil
+    }
+    
+    private func performEdit() async {
+        isGeneratingContent = true
+        
+        let editPrompt = Prompt(
+            """
+            Task: Edit the provided draft. If there is selected text, only edit that portion and return the full document with the change applied.
+
+            Draft:
+            \(editorModel.text)
+
+            Selected segment (may be empty):
+            \(selectedText)
+
+            Constraints:
+            - Preserve voice, intent, and structure unless clarity requires minor adjustments.
+            - Keep length similar; remove filler.
+            - No explanations; return Markdown only.
+            - Do not include any --- markers in the output.
+            """
+        )
+
+        do {
+            let session = LanguageModelSession(instructions: instructions)
+            let stream = session.streamResponse(to: editPrompt)
+            
+            for try await partial in stream {
+                if Task.isCancelled {
+                    break
+                }
+                pendingAIText = partial.content
+            }
+            
+            editText = ""
+            if pendingAIText != nil { showReviewSheet = true }
+        } catch {
+            showToastMessage("Failed to edit content: \(error.localizedDescription)")
+        }
+        
+        isGeneratingContent = false
+        generationTask = nil
+    }
 
     private func checkForAtSymbol(in text: String) {
         let currentPosition = cursorPosition
@@ -1501,14 +1534,28 @@ struct iOSContentView: View {
                     let mentionText = String(text[searchStartIndex..<searchEndIndex])
                     if !mentionText.contains(" ") && !mentionText.contains("\n") {
                         postSearchText = mentionText
+                        // Don't return here - continue to update position and keep overlay visible
+                    } else {
+                        // Mention context is invalid
+                        showPostSuggestions = false
+                        atSymbolPosition = nil
+                        postSearchText = ""
                         return
                     }
+                } else {
+                    // @ symbol is no longer valid
+                    showPostSuggestions = false
+                    atSymbolPosition = nil
+                    postSearchText = ""
+                    return
                 }
+            } else {
+                // Invalid range
+                showPostSuggestions = false
+                atSymbolPosition = nil
+                postSearchText = ""
+                return
             }
-            // If we get here, the mention context is invalid
-            showPostSuggestions = false
-            atSymbolPosition = nil
-            postSearchText = ""
         }
         
         // Check if we just typed @ 
@@ -1526,28 +1573,13 @@ struct iOSContentView: View {
                     atSymbolPosition = currentPosition - 1
                     postSearchText = ""
                     showPostSuggestions = true
-                    
-                    // Calculate position for overlay near caret on macOS using NSTextView
-                    #if os(macOS)
-                    if let tv = textView {
-                        let caretRange = tv.selectedRange()
-                        if let layoutManager = tv.layoutManager, let textContainer = tv.textContainer {
-                            var glyphIndex = layoutManager.glyphIndexForCharacter(at: max(caretRange.location, 0))
-                            glyphIndex = min(glyphIndex, max(layoutManager.numberOfGlyphs - 1, 0))
-                            var rect = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyphIndex, length: 0), in: textContainer)
-                            rect = rect.offsetBy(dx: tv.textContainerInset.width, dy: tv.textContainerInset.height)
-                            suggestionPosition = CGPoint(x: rect.origin.x, y: rect.maxY + 6)
-                        } else {
-                            suggestionPosition = CGPoint(x: 12, y: 28)
-                        }
-                    } else {
-                        suggestionPosition = CGPoint(x: 12, y: 28)
-                    }
-                    #else
-                    suggestionPosition = caretRelativePosition(in: text)
-                    #endif
                 }
             }
+        }
+        
+        // Update overlay position if suggestions are showing
+        if showPostSuggestions {
+            suggestionPosition = caretRelativePosition(in: text)
         }
     }
 
@@ -1584,15 +1616,30 @@ struct iOSContentView: View {
     }
 
     private func caretRelativePosition(in text: String) -> CGPoint {
-        // Basic heuristic: place overlay near the current line start, slightly below
-        // For iOS, we don't have direct caret rect here; this keeps UI consistent
+        // For iOS, position the overlay intelligently to avoid keyboard
         let lineHeight: CGFloat = 24
         let x: CGFloat = 12
+        
         // Estimate line number by counting newlines up to cursorPosition
         let upToCursor = String(text.prefix(cursorPosition))
         let lineIndex = upToCursor.filter { $0 == "\n" }.count
-        let y = CGFloat(lineIndex + 1) * lineHeight
-        return CGPoint(x: x, y: y)
+        
+        // Calculate base position
+        let baseY = CGFloat(lineIndex + 1) * lineHeight
+        
+        // If keyboard is visible, position above the current line but not too high
+        if isKeyboardVisible {
+            // Position above the current line with moderate offset
+            let keyboardAvoidanceOffset: CGFloat = 80 // Reduced from 150
+            let y = max(0, CGFloat(lineIndex) * lineHeight - keyboardAvoidanceOffset)
+            
+            // Ensure the overlay doesn't go too high (above the top of the screen)
+            let minY: CGFloat = 120 // Increased from 80 to give more top margin
+            return CGPoint(x: x, y: max(minY, y))
+        } else {
+            // Position below the current line when no keyboard
+            return CGPoint(x: x, y: baseY)
+        }
     }
     
     private func loadPosts() {
@@ -1614,22 +1661,6 @@ struct iOSContentView: View {
                 }
             }
         }
-    }
-}
-
-extension String {
-    func substring(with nsrange: NSRange) -> String? {
-        let nsString = self as NSString
-        let textLength = nsString.length
-        let isValid = nsrange.location >= 0 && nsrange.length >= 0 && nsrange.location <= textLength && (nsrange.location + nsrange.length) <= textLength
-        if !isValid {
-    #if DEBUG
-            print("[String.substring(with:)] Invalid range: \(nsrange), text length: \(textLength)")
-    #endif
-            return nil
-        }
-        guard let range = Range(nsrange, in: self) else { return nil }
-        return String(self[range])
     }
 }
 
@@ -2007,15 +2038,23 @@ struct PostPicker: View {
     let onSelect: (Post) -> Void
     @State private var searchText = ""
     @State private var allPosts: [Post] = []
+    @State private var isLoading = false
+    
+    @AppStorage("bucketName") var BUCKET = ""
+    @AppStorage("readKey") var READ_KEY = ""
     
     var filteredPosts: [Post] {
         if searchText.isEmpty {
-            return allPosts
+            // Show first 10 posts when no search text
+            return Array(allPosts.prefix(10))
         } else {
-            return allPosts.filter { post in
+            // Filter through ALL posts when searching
+            let filtered = allPosts.filter { post in
                 post.title.localizedCaseInsensitiveContains(searchText) ||
                 post.slug.localizedCaseInsensitiveContains(searchText)
             }
+            print("Searching for '\(searchText)' - found \(filtered.count) posts out of \(allPosts.count) total")
+            return filtered
         }
     }
     
@@ -2027,22 +2066,31 @@ struct PostPicker: View {
             TextField("Search posts...", text: $searchText)
                 .textFieldStyle(.roundedBorder)
             
-            List(filteredPosts, id: \.id) { post in
-                Button {
-                    onSelect(post)
-                    isPresented = false
-                } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(post.title)
-                            .font(.subheadline)
-                            .foregroundStyle(.primary)
-                        Text(post.slug)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            if isLoading {
+                ProgressView("Loading posts...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredPosts.isEmpty {
+                Text("No posts found")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(filteredPosts, id: \.id) { post in
+                    Button {
+                        onSelect(post)
+                        isPresented = false
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(post.title)
+                                .font(.subheadline)
+                                .foregroundStyle(.primary)
+                            Text(post.slug)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             
             HStack {
@@ -2059,9 +2107,31 @@ struct PostPicker: View {
     }
     
     private func loadPosts() {
-        // This will be populated by the parent view
-        // For now, we'll use an empty array
-        allPosts = []
+        guard !BUCKET.isEmpty && !READ_KEY.isEmpty else {
+            print("Missing bucket or read key for loading posts")
+            return
+        }
+        
+        isLoading = true
+        let cosmic = CosmicSDKSwift(.createBucketClient(bucketSlug: BUCKET, readKey: READ_KEY, writeKey: ""))
+        
+        cosmic.find(type: "writings",
+                    props: "id,title,slug,type",
+                    limit: 1000,
+                    status: .any
+        ) { result in
+            Task { @MainActor in
+                isLoading = false
+                switch result {
+                case .success(let response):
+                    self.allPosts = response.objects
+                        .filter { $0.type == "writings" }
+                        .map { Post(id: $0.id!, title: $0.title, slug: $0.slug!) }
+                case .failure(let error):
+                    print("Failed to load posts: \(error)")
+                }
+            }
+        }
     }
 }
 
@@ -2381,7 +2451,7 @@ struct MacContentView: View {
     // Add state for scheduled date
     @State private var scheduledDate: Date? = nil
     @State private var showScheduleDatePicker = false
-    @State private var showPostPicker = false
+
     
     // Add state for inline suggestions
     @State private var showPostSuggestions = false
@@ -2422,7 +2492,7 @@ struct MacContentView: View {
         3. Prioritise taste and human judgement in discussions about design.
         4. Explore how code democratization breaks down the barriers between design and development.
         5. Emphasise real-world applications, steering clear of theoretical discussions.
-        6. Use crisp, precise language, maintaining British English spellings.
+        6. Use crisp, precise language, maintaining British English spellings and terminology ALWAYS (e.g., colour, centre, organisation, analyse, realise, programme, theatre, labour, defence, offence, licence, practice/practise, etc.).
         7. Organise thoughts for a seamless flow without using headings.
         8. Back up points with examples and personal experiences as they fit.
         9. Engage with both the technical and non-technical facets.
@@ -2447,7 +2517,7 @@ struct MacContentView: View {
         -  Use of excessive technical language
         -  Exit explanations—implement changes directly
         
-        The content should be a continuation of your existing body of work, fitting seamlessly into your established opinions and views on AI and product development. Always use Markdown for formatting.
+        The content should be a continuation of your existing body of work, fitting seamlessly into your established opinions and views on AI and product development. Always use Markdown for formatting. NEVER use American English spellings or terminology.
         """
     }
     
@@ -2480,9 +2550,14 @@ struct MacContentView: View {
                                         showPostSuggestions = false
                                         atSymbolPosition = nil
                                         postSearchText = ""
-                                    }
+                                    },
+                                    onSearchTextChange: { newText in
+                                        postSearchText = newText
+                                    },
+                                    isKeyboardVisible: false // macOS doesn't have virtual keyboard
                                 )
                                 .offset(x: suggestionPosition.x, y: suggestionPosition.y)
+                                .zIndex(1000)
                             }
                         }
                         // Image shelf
@@ -2517,6 +2592,10 @@ struct MacContentView: View {
                             document.text = newValue
                         }
                     }
+                    .onChange(of: cursorPosition) {
+                        // Check for @ symbol when cursor position changes
+                        checkForAtSymbol(in: document.text)
+                    }
                     
                     // Preview pane
                     if !focusMode {
@@ -2538,10 +2617,8 @@ struct MacContentView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .glassEffect(.regular, in: .capsule)
                             .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-                            .scaleEffect(1.0)
                             .animation(.easeInOut(duration: 0.2), value: statsText)
                     }
                 }
@@ -2557,25 +2634,9 @@ struct MacContentView: View {
             }
             
             if isGeneratingContent {
-                VStack {
-                    HStack(spacing: 12) {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(.primary)
-                        
-                        Text("Generating content...")
-                            .font(.subheadline)
-                            .foregroundStyle(.primary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(radius: 4)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                ToastView(message: "Generating content...")
+                    .offset(y: toastOffset)
+                    .animation(.spring(response: 0.3), value: toastOffset)
             }
 
             if showReviewSheet, let pending = pendingAIText {
@@ -2775,6 +2836,7 @@ struct MacContentView: View {
         }
         .onAppear {
             setupNotificationObservers()
+            loadPosts()
         }
         .onDisappear {
             observers.forEach { NotificationCenter.default.removeObserver($0) }
@@ -2789,14 +2851,25 @@ struct MacContentView: View {
                     .font(.headline)
                 
                 TextField("Describe your edits...", text: $editText, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.plain)
+                    .padding()
+                    .glassEffect(.regular, in: .rect(cornerRadius: 24))
                     .lineLimit(3...8)
+                    .onSubmit {
+                        if !editText.isEmpty {
+                            Task {
+                                showEditInput = false
+                                await performEdit()
+                            }
+                        }
+                    }
                 
-                HStack {
+                HStack(spacing: 12) {
                     Button("Cancel") {
                         showEditInput = false
                         editText = ""
                     }
+                    .buttonStyle(.glass)
                     
                     Spacer()
                     
@@ -2806,19 +2879,14 @@ struct MacContentView: View {
                             await performEdit()
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .disabled(editText.isEmpty)
                 }
             }
-            .padding()
-            .frame(width: 400, height: 200)
+            .padding(24)
+            .frame(width: 450, height: 220)
         }
-        .sheet(isPresented: $showPostPicker) {
-            PostPicker(isPresented: $showPostPicker) { post in
-                insertPostReference(post)
-            }
-            .frame(width: 500, height: 600)
-        }
+
         .sheet(isPresented: $showScheduleDatePicker) {
             CustomScheduleView(
                 scheduledDate: $scheduledDate,
@@ -2948,7 +3016,7 @@ struct MacContentView: View {
         do {
             // Generate AI content
             let summaryPrompt = "Summarise this text in a clear and concise way that captures the main points and key ideas:\n\n\(document.text). Use British English always."
-            let snippetPrompt = "Create a compelling 120-character or less snippet that captures the essence of this text and entices readers to read more:\n\n\(document.text). Do not include quotation marks. Use British English always."
+            let snippetPrompt = "Create a compelling 120-character or less snippet that captures the essence of this text and entices readers to read more:\n\n\(document.text). IMPORTANT: Do not include any quotation marks (\" or ') in the snippet. Use British English always."
             
             async let summary = cosmic.generateText(prompt: summaryPrompt)
             async let snippet = cosmic.generateText(prompt: snippetPrompt)
@@ -3052,15 +3120,14 @@ struct MacContentView: View {
                 Title: \(document.title)
 
                 Current content:
-                ---
                 \(editorModel.text)
-                ---
 
                 Requirements:
                 - Keep the author's voice and intent.
                 - Improve clarity, flow, and specificity.
                 - Maintain structure unless a minor re-order clearly improves readability.
                 - No preambles or explanations; return Markdown only.
+                - Do not include any --- markers in the output.
                 """
             )
             
@@ -3092,19 +3159,16 @@ struct MacContentView: View {
             Task: Edit the provided draft. If there is selected text, only edit that portion and return the full document with the change applied.
 
             Draft:
-            ---
             \(editorModel.text)
-            ---
 
             Selected segment (may be empty):
-            ---
             \(selectedText)
-            ---
 
             Constraints:
             - Preserve voice, intent, and structure unless clarity requires minor adjustments.
             - Keep length similar; remove filler.
             - No explanations; return Markdown only.
+            - Do not include any --- markers in the output.
             """
         )
 
@@ -3132,6 +3196,43 @@ struct MacContentView: View {
     private func checkForAtSymbol(in text: String) {
         let currentPosition = cursorPosition
         
+        // If we're already showing suggestions, update the search text
+        if showPostSuggestions, let atPos = atSymbolPosition {
+            let searchStartIndex = text.index(text.startIndex, offsetBy: atPos + 1, limitedBy: text.endIndex) ?? text.endIndex
+            let searchEndIndex = text.index(text.startIndex, offsetBy: currentPosition, limitedBy: text.endIndex) ?? text.endIndex
+            
+            if searchStartIndex <= searchEndIndex && searchEndIndex <= text.endIndex {
+                // Check if we're still in a valid @ mention context
+                let beforeAtIndex = text.index(text.startIndex, offsetBy: atPos, limitedBy: text.endIndex) ?? text.endIndex
+                if beforeAtIndex < text.endIndex && text[beforeAtIndex] == "@" {
+                    // Check if there's a space or newline that would end the mention
+                    let mentionText = String(text[searchStartIndex..<searchEndIndex])
+                    if !mentionText.contains(" ") && !mentionText.contains("\n") {
+                        postSearchText = mentionText
+                        // Don't return here - continue to update position and keep overlay visible
+                    } else {
+                        // Mention context is invalid
+                        showPostSuggestions = false
+                        atSymbolPosition = nil
+                        postSearchText = ""
+                        return
+                    }
+                } else {
+                    // @ symbol is no longer valid
+                    showPostSuggestions = false
+                    atSymbolPosition = nil
+                    postSearchText = ""
+                    return
+                }
+            } else {
+                // Invalid range
+                showPostSuggestions = false
+                atSymbolPosition = nil
+                postSearchText = ""
+                return
+            }
+        }
+        
         // Check if we just typed @ 
         if currentPosition > 0 {
             let index = text.index(text.startIndex, offsetBy: currentPosition - 1, limitedBy: text.endIndex) ?? text.endIndex
@@ -3145,8 +3246,28 @@ struct MacContentView: View {
                 
                 if isAtStart || isPrecededByWhitespace {
                     atSymbolPosition = currentPosition - 1
-                    showPostPicker = true
+                    postSearchText = ""
+                    showPostSuggestions = true
                 }
+            }
+        }
+        
+        // Update overlay position if suggestions are showing
+        if showPostSuggestions, let atPos = atSymbolPosition {
+            // Calculate position for overlay near caret on macOS using NSTextView
+            if let tv = textView {
+                let caretRange = tv.selectedRange()
+                if let layoutManager = tv.layoutManager, let textContainer = tv.textContainer {
+                    var glyphIndex = layoutManager.glyphIndexForCharacter(at: max(caretRange.location, 0))
+                    glyphIndex = min(glyphIndex, max(layoutManager.numberOfGlyphs - 1, 0))
+                    var rect = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyphIndex, length: 0), in: textContainer)
+                    rect = rect.offsetBy(dx: tv.textContainerInset.width, dy: tv.textContainerInset.height)
+                    suggestionPosition = CGPoint(x: rect.origin.x, y: rect.maxY + 6)
+                } else {
+                    suggestionPosition = CGPoint(x: 12, y: 28)
+                }
+            } else {
+                suggestionPosition = CGPoint(x: 12, y: 28)
             }
         }
     }
@@ -3180,7 +3301,7 @@ struct MacContentView: View {
         
         cosmic.find(type: "writings",
                     props: "id,title,slug,type",
-                    limit: 100,
+                    limit: 1000,
                     status: .any
         ) { result in
             Task { @MainActor in
@@ -3194,22 +3315,6 @@ struct MacContentView: View {
                 }
             }
         }
-    }
-}
-
-extension String {
-    func substring(with nsrange: NSRange) -> String? {
-        let nsString = self as NSString
-        let textLength = nsString.length
-        let isValid = nsrange.location >= 0 && nsrange.length >= 0 && nsrange.location <= textLength && (nsrange.location + nsrange.length) <= textLength
-        if !isValid {
-#if DEBUG
-            print("[String.substring(with:)] Invalid range: \(nsrange), text length: \(textLength)")
-#endif
-            return nil
-        }
-        guard let range = Range(nsrange, in: self) else { return nil }
-        return String(self[range])
     }
 }
 

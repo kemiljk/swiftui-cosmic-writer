@@ -78,6 +78,20 @@ enum MarkdownFormatting: Int, CaseIterable, Identifiable {
 }
 
 extension String {
+    func substring(with nsrange: NSRange) -> String? {
+        let nsString = self as NSString
+        let textLength = nsString.length
+        let isValid = nsrange.location >= 0 && nsrange.length >= 0 && nsrange.location <= textLength && (nsrange.location + nsrange.length) <= textLength
+        if !isValid {
+    #if DEBUG
+            print("[String.substring(with:)] Invalid range: \(nsrange), text length: \(textLength)")
+    #endif
+            return nil
+        }
+        guard let range = Range(nsrange, in: self) else { return nil }
+        return String(self[range])
+    }
+    
     var wordCount: Int {
         let words = self.split { $0.isWhitespace || $0.isNewline }
         return words.count

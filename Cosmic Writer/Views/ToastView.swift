@@ -15,10 +15,7 @@ struct ToastView: View {
             .foregroundStyle(.primary)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(
-                Capsule()
-                    .fill(.thinMaterial)
-            )
+            .glassEffect(.regular, in: .capsule)
             .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
     }
 }

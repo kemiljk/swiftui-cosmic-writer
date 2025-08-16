@@ -25,6 +25,9 @@ struct Cosmic_WriterApp: App {
             ContentView(document: file.$document)
                 .modelContainer(container)
         }
+        #if os(macOS)
+        .windowIdealSize(.maximum)
+        #endif
         .commands {
             CommandGroup(after: .textFormatting) {
                 Divider()
