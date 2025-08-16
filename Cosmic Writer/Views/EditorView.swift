@@ -43,7 +43,12 @@ struct EditorView: View {
                             editor.textView.resignFirstResponder()
                         }
                         let hostingController = UIHostingController(rootView: toolbarView)
-                        hostingController.view.frame = CGRect(x: 0, y: 0, width: max(UIScreen.main.bounds.width, 320), height: 44)
+                        hostingController.view.frame = CGRect(
+                            x: 0,
+                            y: 0,
+                            width: max((editor.textView.window?.windowScene?.screen.bounds.width ?? 375) - 32, 320),
+                            height: 44
+                        )
                         hostingController.view.backgroundColor = .systemBackground
                         editor.textView.inputAccessoryView = hostingController.view
                         editor.scrollView?.contentInset.bottom = 16
@@ -503,6 +508,22 @@ struct EditorView: View {
                 Task { @MainActor in
                     cursorPosition = range.location
                     selectionLength = range.length
+                    
+                    // Update selectedText based on the selection range
+                    if range.length > 0 {
+                        let nsString = editorModel.text as NSString
+                        let safeRange = NSRange(
+                            location: min(range.location, nsString.length),
+                            length: min(range.length, nsString.length - range.location)
+                        )
+                        if safeRange.location >= 0 && safeRange.length > 0 && safeRange.location + safeRange.length <= nsString.length {
+                            selectedText = nsString.substring(with: safeRange)
+                        } else {
+                            selectedText = ""
+                        }
+                    } else {
+                        selectedText = ""
+                    }
                 }
             }
             .onTextChange { newText in

@@ -17,6 +17,8 @@
 		CF1C8F3F2989183F00CEF906 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */; };
 		CF4063F72E06D2BE00E3626E /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = CF4063F62E06D2BE00E3626E /* AppIcon.icon */; };
 		CF4071BD2E09454200E3626E /* CosmicSDK in Frameworks */ = {isa = PBXBuildFile; productRef = CF4071BC2E09454200E3626E /* CosmicSDK */; };
+		CF72E1902E509E4600D068EF /* MacContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF72E18F2E509E4000D068EF /* MacContentView.swift */; };
+		CF72E1922E509F4200D068EF /* iOSContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF72E1912E509F3F00D068EF /* iOSContentView.swift */; };
 		CF83F4292D8AEECC00604131 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF83F4272D8AEECC00604131 /* Model.swift */; };
 		CF84EC8D2CFE45D60081E019 /* Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC8C2CFE45D40081E019 /* Helpers.swift */; };
 		CF84EC912CFE46210081E019 /* PreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC902CFE461F0081E019 /* PreviewView.swift */; };
@@ -38,6 +40,8 @@
 		CF1C8F3C2989183F00CEF906 /* Cosmic_Writer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Cosmic_Writer.entitlements; sourceTree = "<group>"; };
 		CF1C8F3E2989183F00CEF906 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CF4063F62E06D2BE00E3626E /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
+		CF72E18F2E509E4000D068EF /* MacContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacContentView.swift; sourceTree = "<group>"; };
+		CF72E1912E509F3F00D068EF /* iOSContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSContentView.swift; sourceTree = "<group>"; };
 		CF83F4272D8AEECC00604131 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		CF84EC8C2CFE45D40081E019 /* Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Helpers.swift; sourceTree = "<group>"; };
 		CF84EC902CFE461F0081E019 /* PreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewView.swift; sourceTree = "<group>"; };
@@ -121,6 +125,8 @@
 		CF981434298919CA00E64BEB /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				CF72E1912E509F3F00D068EF /* iOSContentView.swift */,
+				CF72E18F2E509E4000D068EF /* MacContentView.swift */,
 				CFB7AD9F2CFEFA4A007A5854 /* ToastView.swift */,
 				CF84EC922CFE468B0081E019 /* EditorView.swift */,
 				CF84EC902CFE461F0081E019 /* PreviewView.swift */,
@@ -222,7 +228,9 @@
 			files = (
 				CF84EC932CFE468D0081E019 /* EditorView.swift in Sources */,
 				CF1C8F342989183D00CEF906 /* Cosmic_WriterApp.swift in Sources */,
+				CF72E1902E509E4600D068EF /* MacContentView.swift in Sources */,
 				CF83F4292D8AEECC00604131 /* Model.swift in Sources */,
+				CF72E1922E509F4200D068EF /* iOSContentView.swift in Sources */,
 				CF84EC912CFE46210081E019 /* PreviewView.swift in Sources */,
 				CF84EC8D2CFE45D60081E019 /* Helpers.swift in Sources */,
 				CF1C8F362989183D00CEF906 /* Cosmic_WriterDocument.swift in Sources */,
