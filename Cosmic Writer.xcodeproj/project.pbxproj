@@ -25,6 +25,7 @@
 		CF84EC932CFE468D0081E019 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF84EC922CFE468B0081E019 /* EditorView.swift */; };
 		CF981441298955E000E64BEB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF981440298955E000E64BEB /* SettingsView.swift */; };
 		CFB7ADA02CFEFA50007A5854 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB7AD9F2CFEFA4A007A5854 /* ToastView.swift */; };
+		CFC5F0D42EA773BD003305F0 /* WritingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC5F0D32EA773BC003305F0 /* WritingService.swift */; };
 		CFE33675298AD6DB00980014 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = CFE33674298AD6DB00980014 /* MarkdownUI */; };
 /* End PBXBuildFile section */
 
@@ -48,6 +49,7 @@
 		CF84EC922CFE468B0081E019 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		CF981440298955E000E64BEB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		CFB7AD9F2CFEFA4A007A5854 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
+		CFC5F0D32EA773BC003305F0 /* WritingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WritingService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -110,6 +112,7 @@
 			isa = PBXGroup;
 			children = (
 				CF088D352DF5C9B500BBB973 /* MarkdownFormatter.swift */,
+				CFC5F0D32EA773BC003305F0 /* WritingService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -236,6 +239,7 @@
 				CF1C8F362989183D00CEF906 /* Cosmic_WriterDocument.swift in Sources */,
 				CF981441298955E000E64BEB /* SettingsView.swift in Sources */,
 				CF088D362DF5C9BB00BBB973 /* MarkdownFormatter.swift in Sources */,
+				CFC5F0D42EA773BD003305F0 /* WritingService.swift in Sources */,
 				CF1C8F382989183D00CEF906 /* ContentView.swift in Sources */,
 				CFB7ADA02CFEFA50007A5854 /* ToastView.swift in Sources */,
 				CF088D382DF6093900BBB973 /* UIKitSwiftUISync.swift in Sources */,

@@ -26,7 +26,7 @@ struct Cosmic_WriterApp: App {
                 .modelContainer(container)
         }
         #if os(macOS)
-        .windowIdealSize(.maximum)
+        .defaultSize(width: 900, height: 1100)
         #endif
         .commands {
             CommandGroup(after: .textFormatting) {
@@ -63,6 +63,17 @@ struct Cosmic_WriterApp: App {
                 }
                 .keyboardShortcut("f", modifiers: .command)
             }
+            CommandGroup(replacing: .saveItem) {
+                Button("Post Draft") {
+                    NotificationCenter.default.post(name: .postDraft, object: nil)
+                }
+                .keyboardShortcut(.return, modifiers: .command)
+
+                Button("Publish") {
+                    NotificationCenter.default.post(name: .publishPost, object: nil)
+                }
+                .keyboardShortcut(.return, modifiers: [.command, .shift])
+            }
         }
     }
 }
@@ -79,4 +90,6 @@ extension Notification.Name {
     static let openSettings = Notification.Name("openSettings")
     static let showPreview = Notification.Name("showPreview")
     static let uploadImage = Notification.Name("uploadImage")
+    static let postDraft = Notification.Name("postDraft")
+    static let publishPost = Notification.Name("publishPost")
 }

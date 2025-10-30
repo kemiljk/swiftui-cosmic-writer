@@ -16,6 +16,8 @@ struct EditorView: View {
     @Binding var textView: UITextView?
     var onFormat: (MarkdownFormatting) -> Void
     @Binding var editorModel: HighlightedTextModel
+    var showEditInput: Bool
+    @Binding var highlightedRange: NSRange?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -26,6 +28,26 @@ struct EditorView: View {
                         safeUIKitToSwiftUIUpdate(textView) {
                             cursorPosition = range.location
                             selectionLength = range.length
+                            
+                            // Only update selectedText if we're not in edit mode
+                            // This prevents the selection from being cleared when the overlay appears
+                            if !showEditInput {
+                                if range.length > 0 {
+                                    let nsString = editorModel.text as NSString
+                                    let safeRange = NSRange(
+                                        location: min(range.location, nsString.length),
+                                        length: min(range.length, nsString.length - range.location)
+                                    )
+                                    if safeRange.location >= 0 && safeRange.length > 0 && safeRange.location + safeRange.length <= nsString.length {
+                                        selectedText = nsString.substring(with: safeRange)
+                                    } else {
+                                        selectedText = ""
+                                    }
+                                } else {
+                                    selectedText = ""
+                                }
+                            }
+                            // When in edit mode, preserve the current selection by not updating selectedText
                         }
                     }
                 }
@@ -52,6 +74,15 @@ struct EditorView: View {
                         hostingController.view.backgroundColor = .systemBackground
                         editor.textView.inputAccessoryView = hostingController.view
                         editor.scrollView?.contentInset.bottom = 16
+
+                        // Apply custom highlighting if range is set
+                        applyCustomHighlighting(to: editor.textView)
+                    }
+                }
+                .onChange(of: highlightedRange) { _, _ in
+                    // Update highlighting when range changes
+                    if let tv = textView {
+                        applyCustomHighlighting(to: tv)
                     }
                 }
         }
@@ -77,6 +108,48 @@ struct EditorView: View {
             }
             return false
         }
+    }
+
+    // Apply custom highlighting to the text view
+    private func applyCustomHighlighting(to textView: UITextView) {
+        guard let range = highlightedRange,
+              range.location >= 0,
+              range.length > 0,
+              range.location + range.length <= textView.text.count else {
+            // Clear any existing background color
+            if let existingText = textView.attributedText {
+                let mutableText = NSMutableAttributedString(attributedString: existingText)
+                let fullRange = NSRange(location: 0, length: mutableText.length)
+                mutableText.removeAttribute(.backgroundColor, range: fullRange)
+
+                let currentSelection = textView.selectedRange
+                textView.attributedText = mutableText
+                textView.selectedRange = currentSelection
+            }
+            return
+        }
+
+        // Get existing attributed text or create from plain text
+        let attributedString: NSMutableAttributedString
+        if let existingText = textView.attributedText {
+            attributedString = NSMutableAttributedString(attributedString: existingText)
+        } else {
+            attributedString = NSMutableAttributedString(string: textView.text)
+        }
+
+        // Apply background color to the highlighted range
+        attributedString.addAttribute(.backgroundColor,
+                                      value: UIColor.systemBlue.withAlphaComponent(0.2),
+                                      range: range)
+
+        // Preserve the selection
+        let currentSelection = textView.selectedRange
+
+        // Update text view
+        textView.attributedText = attributedString
+
+        // Restore selection
+        textView.selectedRange = currentSelection
     }
 }
 
@@ -501,6 +574,7 @@ struct EditorView: View {
     @Binding var textView: NSTextView?
     var onFormat: (MarkdownFormatting) -> Void
     @Binding var editorModel: HighlightedTextModel
+    var showEditInput: Bool
     
     var body: some View {
         HighlightedTextEditorObservable(model: editorModel, highlightRules: .markdown)
@@ -509,21 +583,25 @@ struct EditorView: View {
                     cursorPosition = range.location
                     selectionLength = range.length
                     
-                    // Update selectedText based on the selection range
-                    if range.length > 0 {
-                        let nsString = editorModel.text as NSString
-                        let safeRange = NSRange(
-                            location: min(range.location, nsString.length),
-                            length: min(range.length, nsString.length - range.location)
-                        )
-                        if safeRange.location >= 0 && safeRange.length > 0 && safeRange.location + safeRange.length <= nsString.length {
-                            selectedText = nsString.substring(with: safeRange)
+                    // Only update selectedText if we're not in edit mode
+                    // This prevents the selection from being cleared when the overlay appears
+                    if !showEditInput {
+                        if range.length > 0 {
+                            let nsString = editorModel.text as NSString
+                            let safeRange = NSRange(
+                                location: min(range.location, nsString.length),
+                                length: min(range.length, nsString.length - range.location)
+                            )
+                            if safeRange.location >= 0 && safeRange.length > 0 && safeRange.location + safeRange.length <= nsString.length {
+                                selectedText = nsString.substring(with: safeRange)
+                            } else {
+                                selectedText = ""
+                            }
                         } else {
                             selectedText = ""
                         }
-                    } else {
-                        selectedText = ""
                     }
+                    // When in edit mode, preserve the current selection by not updating selectedText
                 }
             }
             .onTextChange { newText in

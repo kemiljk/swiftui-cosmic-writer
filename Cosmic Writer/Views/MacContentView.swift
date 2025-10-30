@@ -29,6 +29,7 @@ struct MacContentView: View {
     @State private var cursorPosition: Int = 0
     @State private var selectionLength: Int = 0
     @State private var selectedText: String = ""
+    @State private var selectedRange: NSRange = NSRange(location: 0, length: 0)
     @State private var textView: NSTextView? = nil
     @State private var observers: [NSObjectProtocol] = []
     @State private var isSending: Bool = false
@@ -45,6 +46,10 @@ struct MacContentView: View {
     @State private var generationTask: Task<Void, Never>? = nil
     @State private var pendingAIText: String? = nil
     @State private var showReviewSheet: Bool = false
+    @State private var showGenerateAcceptDialog: Bool = false
+    @State private var originalTextForGeneration: String = ""
+    @State private var originalTextBeforeEdit: String = ""
+    @FocusState private var editInputIsFocused: Bool
     
     // Add state for scheduled date
     @State private var scheduledDate: Date? = nil
@@ -57,6 +62,12 @@ struct MacContentView: View {
     @State private var postSearchText = ""
     @StateObject private var postCache = PostCache()
     @State private var suggestionPosition: CGPoint = .zero
+    @StateObject private var writingService: WritingService = {
+        let defaults = UserDefaults.standard
+        let bucket = defaults.string(forKey: "bucketName") ?? ""
+        let readKey = defaults.string(forKey: "readKey") ?? ""
+        return WritingService(bucket: bucket, readKey: readKey)
+    }()
     
     // Filter images for current document
     private var documentImages: [ShelfImage] {
@@ -80,45 +91,6 @@ struct MacContentView: View {
         "\(characterCount) characters • \(wordCount) words • \(readingTime) min read"
     }
     
-    private var instructions: String {
-        """
-        You are Karl Emil James Koch, you craft compelling content, weaving a narrative centred on AI, product development, and occasionally the fusion of design and engineering when it's relevant. Your job is to convey ideas with clarity and engage readers without dividing the content into sections with headings.
-        
-        Guidelines to follow:
-        1. Adopt a conversational yet insightful tone, balancing depth with clarity.
-        2. Dive into the overlap of design and engineering, especially AI and search products, only when it naturally fits.
-        3. Prioritise taste and human judgement in discussions about design.
-        4. Explore how code democratization breaks down the barriers between design and development.
-        5. Emphasise real-world applications, steering clear of theoretical discussions.
-        6. Use crisp, precise language, maintaining British English spellings and terminology ALWAYS (e.g., colour, centre, organisation, analyse, realise, programme, theatre, labour, defence, offence, licence, practice/practise, etc.).
-        7. Organise thoughts for a seamless flow without using headings.
-        8. Back up points with examples and personal experiences as they fit.
-        9. Engage with both the technical and non-technical facets.
-        10. Balance between process focus and outcome thinking.
-        11. Stick to your unique voice without inquiries for edits.
-        
-        Writing style characteristics:
-        -  Keep it direct but personable
-        -  Focus on practicality and solutions
-        -  Maintain an engaging, yet approachable tone
-        -  Highlight real impacts and user experiences
-        -  Bring forward your experience in design and frontend work
-        -  Avoid using "AI" in titles
-        -  Avoid jargon and stay away from generic advice
-        -  Present your content as complete—no need for user edits
-        -  Refer to "User" only when discussing UX/UI
-        -  Integrate Design and Engineering only when it's organic to the topic
-        
-        Avoid:
-        -  Digressions into overly complex theory
-        -  Cliché openings about change and dynamics
-        -  Use of excessive technical language
-        -  Exit explanations—implement changes directly
-        
-        The content should be a continuation of your existing body of work, fitting seamlessly into your established opinions and views on AI and product development. Always use Markdown for formatting. NEVER use American English spellings or terminology.
-        """
-    }
-    
     var body: some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
@@ -134,7 +106,8 @@ struct MacContentView: View {
                             onFormat: { format in
                                 applyMarkdownFormatting(format)
                             },
-                            editorModel: $editorModel
+                            editorModel: $editorModel,
+                            showEditInput: showEditInput
                         )
                         .overlay(alignment: .topLeading) {
                             if showPostSuggestions {
@@ -236,21 +209,44 @@ struct MacContentView: View {
                     .offset(y: toastOffset)
                     .animation(.spring(response: 0.3), value: toastOffset)
             }
-
-            if showReviewSheet, let pending = pendingAIText {
-                ReviewOverlay(
-                    originalText: document.text,
-                    proposedText: pending,
+            
+            if showGenerateAcceptDialog {
+                GenerateAcceptDialog(
                     onAccept: {
-                        document.text = pending
-                        editorModel.text = pending
+                        // Keep the generated content (it's already in the editor)
                         pendingAIText = nil
-                        showReviewSheet = false
-                        showToastMessage("Applied AI changes")
+                        showGenerateAcceptDialog = false
+                        showToastMessage("Changes applied")
                     },
                     onReject: {
+                        // Revert to original content
+                        editorModel.text = originalTextForGeneration
+                        document.text = originalTextForGeneration
+                        pendingAIText = nil
+                        showGenerateAcceptDialog = false
+                        showToastMessage("Changes reverted")
+                    }
+                )
+                .padding()
+            }
+
+            if showReviewSheet {
+                GenerateAcceptDialog(
+                    onAccept: {
+                        // Keep the generated content (it's already in the editor)
                         pendingAIText = nil
                         showReviewSheet = false
+                        originalTextBeforeEdit = ""
+                        showToastMessage("Changes applied")
+                    },
+                    onReject: {
+                        // Restore original text
+                        document.text = originalTextBeforeEdit
+                        editorModel.text = originalTextBeforeEdit
+                        pendingAIText = nil
+                        showReviewSheet = false
+                        originalTextBeforeEdit = ""
+                        showToastMessage("Changes reverted")
                     }
                 )
                 .padding()
@@ -265,26 +261,6 @@ struct MacContentView: View {
             }
             return .ignored
         }
-        .sheet(isPresented: $showReviewSheet) {
-            if let pending = pendingAIText {
-                DiffView(
-                    originalText: document.text,
-                    proposedText: pending,
-                    onAccept: {
-                        document.text = pending
-                        editorModel.text = pending
-                        pendingAIText = nil
-                        showReviewSheet = false
-                        showToastMessage("Applied AI changes")
-                    },
-                    onReject: {
-                        pendingAIText = nil
-                        showReviewSheet = false
-                    }
-                )
-                .frame(minWidth: 800, minHeight: 600)
-            }
-        }
         .navigationTitle(document.title)
         .toolbar {
             ToolbarItem(placement: .automatic) {
@@ -296,17 +272,43 @@ struct MacContentView: View {
                     Image(systemName: focusMode ? "eye.slash" : "eye")
                 }
                 .help(focusMode ? "Show preview" : "Hide preview")
+                .keyboardShortcut("p", modifiers: .command)
             }
             
             ToolbarItem(placement: .automatic) {
                 Button {
+                    // Capture current selection before showing edit input
+                    if let textView = textView {
+                        let currentSelectedRange = textView.selectedRange()
+                        print("DEBUG: Edit button pressed (macOS) - current selection: \(currentSelectedRange)")
+
+                        if currentSelectedRange.length > 0 {
+                            let fullText = textView.string
+                            let nsString = fullText as NSString
+                            let safeRange = NSRange(
+                                location: min(currentSelectedRange.location, nsString.length),
+                                length: min(currentSelectedRange.length, nsString.length - currentSelectedRange.location)
+                            )
+                            if safeRange.location >= 0 && safeRange.length > 0 && safeRange.location + safeRange.length <= nsString.length {
+                                selectedText = nsString.substring(with: safeRange)
+                                selectedRange = safeRange
+                                print("DEBUG: Captured selection (macOS) - text: '\(selectedText)', range: \(selectedRange)")
+                            }
+                        } else {
+                            selectedText = ""
+                            selectedRange = NSRange(location: 0, length: 0)
+                            print("DEBUG: No selection captured (macOS)")
+                        }
+                    }
+
                     showEditInput.toggle()
                 } label: {
                     Image(systemName: "character.textbox")
                 }
                 .disabled(isGeneratingContent)
-                .help("Edit with AI")
+                .help("Edit")
                 .opacity(isGeneratingContent ? 0.5 : 1.0)
+                .keyboardShortcut("e", modifiers: .command)
             }
             
             ToolbarItem(placement: .automatic) {
@@ -327,10 +329,11 @@ struct MacContentView: View {
                     if isGeneratingContent {
                         Image(systemName: "stop.fill")
                     } else {
-                        Image(systemName: "wand.and.stars")
+                        Image(systemName: "sparkles")
                     }
                 }
-                .help(isGeneratingContent ? "Stop generation" : "Generate content with AI")
+                .help(isGeneratingContent ? "Stop generation" : "Generate content")
+                .keyboardShortcut("g", modifiers: .command)
             }
             
             ToolbarItem(placement: .automatic) {
@@ -405,25 +408,36 @@ struct MacContentView: View {
             }
             
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    self.isSending = true
-                    Task {
-                        await uploadPost()
-                    }
-                } label: {
-                    if isSending {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.up.circle.fill")
-                            Text("Publish")
+                Menu {
+                    Button {
+                        self.isSending = true
+                        Task {
+                            await uploadPost(asDraft: true)
                         }
+                    } label: {
+                        Label("Draft", systemImage: "doc.badge.plus")
+                    }
+                    .disabled(isSending)
+
+                    Button {
+                        self.isSending = true
+                        Task {
+                            await uploadPost(asDraft: false)
+                        }
+                    } label: {
+                        Label("Publish", systemImage: "arrow.up.circle.fill")
+                    }
+                    .disabled(isSending)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up.doc")
+                        Text("Post")
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
-                .help("Publish post")
+                .help("Post as draft or publish")
+                .disabled(isSending)
             }
         }
         .onAppear {
@@ -432,6 +446,14 @@ struct MacContentView: View {
         }
         .onDisappear {
             observers.forEach { NotificationCenter.default.removeObserver($0) }
+        }
+        .onChange(of: BUCKET) { _, newBucket in
+            // Update writing service configuration when bucket changes
+            writingService.updateConfig(bucket: newBucket, readKey: READ_KEY)
+        }
+        .onChange(of: READ_KEY) { _, newReadKey in
+            // Update writing service configuration when read key changes
+            writingService.updateConfig(bucket: BUCKET, readKey: newReadKey)
         }
         .sheet(isPresented: $openSettings) {
             SettingsView()
@@ -447,6 +469,7 @@ struct MacContentView: View {
                     .padding()
                     .glassEffect(.regular, in: .rect(cornerRadius: 24))
                     .lineLimit(3...8)
+                    .focused($editInputIsFocused)
                     .onSubmit {
                         if !editText.isEmpty {
                             Task {
@@ -460,6 +483,17 @@ struct MacContentView: View {
                     Button("Cancel") {
                         showEditInput = false
                         editText = ""
+                        // Clear stored selection when canceling
+                        selectedText = ""
+                        selectedRange = NSRange(location: 0, length: 0)
+
+                        // Restore focus to the text view and maintain selection
+                        if let textView = textView, selectionLength > 0 {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                textView.window?.makeFirstResponder(textView)
+                                textView.setSelectedRange(NSRange(location: cursorPosition, length: selectionLength))
+                            }
+                        }
                     }
                     .buttonStyle(.glass)
                     
@@ -477,6 +511,22 @@ struct MacContentView: View {
             }
             .padding(24)
             .frame(width: 450, height: 220)
+            .onAppear {
+                // Small delay to ensure the sheet is fully visible before focusing
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    editInputIsFocused = true
+                }
+                
+                // Ensure the text view maintains its selection
+                if let textView = textView, selectionLength > 0 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        // Restore selection if it was cleared
+                        if textView.selectedRange().length == 0 && selectionLength > 0 {
+                            textView.setSelectedRange(NSRange(location: cursorPosition, length: selectionLength))
+                        }
+                    }
+                }
+            }
         }
 
         .sheet(isPresented: $showScheduleDatePicker) {
@@ -490,8 +540,24 @@ struct MacContentView: View {
                 withAnimation {
                     toastOffset = -32 // Slide up from bottom
                 }
-                
-                // Automatically hide after delay
+
+                // Don't auto-hide if we're currently sending/publishing
+                if !isSending {
+                    // Automatically hide after delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation {
+                            toastOffset = 100 // Slide back down
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            showToast = false
+                        }
+                    }
+                }
+            }
+        }
+        .onChange(of: isSending) { _, newValue in
+            // When publishing completes, auto-hide the toast after a delay
+            if !newValue && showToast {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                     withAnimation {
                         toastOffset = 100 // Slide back down
@@ -602,51 +668,90 @@ struct MacContentView: View {
         }
     }
     
-    func uploadPost() async {
+    func uploadPost(asDraft: Bool = true) async {
+        // Show publishing toast
+        await MainActor.run {
+            showToastMessage("Publishing...")
+        }
+
         let cosmic = CosmicSDKSwift(.createBucketClient(bucketSlug: BUCKET, readKey: READ_KEY, writeKey: WRITE_KEY))
-        
+
         do {
             // Generate AI content
             let summaryPrompt = "Summarise this text in a clear and concise way that captures the main points and key ideas:\n\n\(document.text). Use British English always."
             let snippetPrompt = "Create a compelling 120-character or less snippet that captures the essence of this text and entices readers to read more:\n\n\(document.text). IMPORTANT: Do not include any quotation marks (\" or ') in the snippet. Use British English always."
-            
+
             async let summary = cosmic.generateText(prompt: summaryPrompt)
             async let snippet = cosmic.generateText(prompt: snippetPrompt)
-            
+
             let (summaryResult, snippetResult) = try await (summary, snippet)
-            
+
             // Upload post with AI content
             let publishAt = scheduledDate.map { String(Int($0.timeIntervalSince1970 * 1000)) }
+            let status: CosmicStatus = asDraft ? .draft : .published
             cosmic.insertOne(type: "writings", title: document.title, metadata: [
                 "tag": tag,
                 "content": document.text,
                 "summary": summaryResult.text,
                 "snippet": snippetResult.text
-            ], status: .draft, publish_at: publishAt) { results in
+            ], status: status, publish_at: publishAt) { results in
                 Task { @MainActor in
                     switch results {
                     case .success(_):
-                        self.toastMessage = scheduledDate != nil ? "Post scheduled" : "Post submitted"
+                        if scheduledDate != nil {
+                            self.toastMessage = "Post scheduled"
+                        } else if asDraft {
+                            self.toastMessage = "Draft saved"
+                        } else {
+                            self.toastMessage = "Post published"
+                        }
                         self.showToast = true
                         self.isSending = false
                         // Reset scheduled date after successful submission
                         self.scheduledDate = nil
                     case .failure(let error):
+                        self.toastMessage = "Failed to publish"
+                        self.showToast = true
+                        self.isSending = false
                         print(error)
                     }
                 }
             }
         } catch {
             await MainActor.run {
-                showToastMessage("Failed to generate AI content")
+                showToastMessage("Failed to generate content")
                 self.isSending = false
-                print("AI Generation Error:", error)
+                print("Content Generation Error:", error)
             }
         }
     }
     
     private func setupNotificationObservers() {
         observers = [
+            NotificationCenter.default.addObserver(
+                forName: .postDraft,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    if !self.isSending {
+                        self.isSending = true
+                        await self.uploadPost(asDraft: true)
+                    }
+                }
+            },
+            NotificationCenter.default.addObserver(
+                forName: .publishPost,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    if !self.isSending {
+                        self.isSending = true
+                        await self.uploadPost(asDraft: false)
+                    }
+                }
+            },
             NotificationCenter.default.addObserver(
                 forName: .applyItalic,
                 object: nil,
@@ -703,7 +808,10 @@ struct MacContentView: View {
     private func generateContent() async {
         isGeneratingContent = true
         showGeneratingToast = true
-        
+
+        // Store original text for comparison and potential reversion
+        originalTextForGeneration = document.text
+
         do {
             let prompt = Prompt(
                 """
@@ -720,21 +828,66 @@ struct MacContentView: View {
                 - Maintain structure unless a minor re-order clearly improves readability.
                 - No preambles or explanations; return Markdown only.
                 - Do not include any --- markers in the output.
+                - Make meaningful improvements to the content.
                 """
             )
             
-            let session = LanguageModelSession(instructions: instructions)
+            let session = LanguageModelSession(instructions: writingService.instructions)
             let stream = session.streamResponse(to: prompt)
             
+            // Stream the response in real-time to the editor
             for try await partial in stream {
                 if Task.isCancelled {
                     break
                 }
+                
+                // Update the editor in real-time with each partial response
+                await MainActor.run {
+                    editorModel.text = partial.content
+                    document.text = partial.content
+                }
+                
+                // Store the latest content for potential review
                 pendingAIText = partial.content
             }
             
-            if pendingAIText != nil { showReviewSheet = true }
+            // After streaming completes, check if there are meaningful changes
+            if let aiText = pendingAIText, !aiText.isEmpty {
+                let originalTextTrimmed = originalTextForGeneration.trimmingCharacters(in: .whitespacesAndNewlines)
+                let aiTextTrimmed = aiText.trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                if originalTextTrimmed != aiTextTrimmed {
+                    // For Generate, directly apply the AI content and show simple accept/reject dialog
+                    await MainActor.run {
+                        // Keep the AI-generated content in the editor
+                        // pendingAIText is already set with the final content
+                        showGenerateAcceptDialog = true
+                    }
+                } else {
+                    // AI returned same text, revert to original and show message
+                    await MainActor.run {
+                        editorModel.text = originalTextForGeneration
+                        document.text = originalTextForGeneration
+                        pendingAIText = nil
+                    }
+                    showToastMessage("No changes generated - content is already optimal")
+                }
+            } else {
+                // No response, revert to original
+                await MainActor.run {
+                    editorModel.text = originalTextForGeneration
+                    document.text = originalTextForGeneration
+                    pendingAIText = nil
+                }
+                showToastMessage("No response generated")
+            }
         } catch {
+            // On error, revert to original text
+            await MainActor.run {
+                editorModel.text = originalTextForGeneration
+                document.text = originalTextForGeneration
+                pendingAIText = nil
+            }
             showToastMessage("Failed to generate content: \(error.localizedDescription)")
         }
         
@@ -745,75 +898,230 @@ struct MacContentView: View {
     
     private func performEdit() async {
         isGeneratingContent = true
-        
-        let editPrompt = Prompt(
-            """
-            Edit the following document according to the user's request.
 
-            REQUEST: \(editText)
+        // Store original text for comparison and potential reversion
+        originalTextBeforeEdit = document.text
+        let originalText = originalTextBeforeEdit
 
-            SELECTED TEXT: \(selectedText)
+        // Determine if we're editing a selection or the full document
+        let isSelectionEdit = !selectedText.isEmpty
 
-            DOCUMENT:
-            \(editorModel.text)
+        // Debug logging for prompt content
+        print("DEBUG: === EDIT PROMPT DEBUG (macOS) ===")
+        print("DEBUG: User's edit request: '\(editText)'")
+        print("DEBUG: Is selection edit: \(isSelectionEdit)")
+        print("DEBUG: Selected text length: \(selectedText.count)")
+        print("DEBUG: Selected text: '\(selectedText)'")
+        print("DEBUG: Selected range: \(selectedRange)")
+        print("DEBUG: Document text length: \(editorModel.text.count)")
+        print("DEBUG: =========================")
 
-            Return ONLY the edited document. Do not include any of the above prompt text, labels, or explanations.
-            """
-        )
+        let editPrompt: Prompt
+
+        if !selectedText.isEmpty {
+            // Edit only the selected text
+            editPrompt = Prompt(
+                """
+                You MUST edit the following text according to the user's request. The user is asking for changes - you need to ACTUALLY MAKE THEM.
+
+                EDITING REQUEST (what the user wants changed):
+                \(editText)
+
+                ORIGINAL TEXT (what needs to be edited):
+                \(selectedText)
+
+                CRITICAL REQUIREMENTS:
+                - IMPLEMENT the requested changes - do NOT just return the original text
+                - Make ACTUAL modifications based on what the user asked for
+                - If the user asks to make it shorter, SHORTEN it
+                - If the user asks to add something, ADD it
+                - If the user asks to rewrite, REWRITE it
+                - If the user asks to change tone, CHANGE the tone
+                - Maintain British English spelling ALWAYS (colour, centre, organise, analyse, realise, etc.)
+                - Keep the author's conversational yet insightful voice
+                - Return ONLY the edited text - no labels, explanations, or meta-commentary
+                - Do NOT return the original unchanged text unless absolutely identical to what was requested
+                """
+            )
+        } else {
+            // Edit the entire document
+            editPrompt = Prompt(
+                """
+                You MUST edit the following document according to the user's request. The user is asking for changes - you need to ACTUALLY MAKE THEM.
+
+                EDITING REQUEST (what the user wants changed):
+                \(editText)
+
+                ORIGINAL DOCUMENT (what needs to be edited):
+                \(editorModel.text)
+
+                CRITICAL REQUIREMENTS:
+                - IMPLEMENT the requested changes - do NOT just return the original text
+                - Make ACTUAL modifications based on what the user asked for
+                - If the user asks to make it shorter, SHORTEN it
+                - If the user asks to add something, ADD it
+                - If the user asks to rewrite, REWRITE it
+                - If the user asks to change tone, CHANGE the tone
+                - Maintain British English spelling ALWAYS (colour, centre, organise, analyse, realise, etc.)
+                - Keep the author's conversational yet insightful voice
+                - Preserve Markdown formatting
+                - Return ONLY the edited document - no labels, explanations, or meta-commentary
+                - Do NOT return the original unchanged text unless absolutely identical to what was requested
+                """
+            )
+        }
 
         do {
-            let session = LanguageModelSession(instructions: instructions)
+            let session = LanguageModelSession(instructions: writingService.instructions)
             let stream = session.streamResponse(to: editPrompt)
-            
+
+            // Deselect the text to show streaming changes clearly
+            if let textView = textView {
+                await MainActor.run {
+                    textView.setSelectedRange(NSRange(location: 0, length: 0))
+                }
+            }
+
+            // For selection edits, we need to reconstruct the document with streaming updates
+            let textBeforeSelection: String
+            let textAfterSelection: String
+
+            if isSelectionEdit {
+                // Capture the text before and after the selection
+                let fullText = originalText
+                let nsString = fullText as NSString
+
+                if selectedRange.location >= 0 && selectedRange.location + selectedRange.length <= nsString.length {
+                    textBeforeSelection = nsString.substring(to: selectedRange.location)
+                    textAfterSelection = nsString.substring(from: selectedRange.location + selectedRange.length)
+                } else {
+                    textBeforeSelection = ""
+                    textAfterSelection = originalText
+                }
+            } else {
+                textBeforeSelection = ""
+                textAfterSelection = ""
+            }
+
+            // Stream the response in real-time
             for try await partial in stream {
                 if Task.isCancelled {
                     break
                 }
-                // Each partial contains the complete response
+
+                if isSelectionEdit {
+                    // For selection edits, reconstruct document with streaming AI response replacing the selection
+                    let reconstructedText = textBeforeSelection + partial.content + textAfterSelection
+                    await MainActor.run {
+                        editorModel.text = reconstructedText
+                        document.text = reconstructedText
+                    }
+                } else {
+                    // For full document edits, update the editor in real-time with the AI response
+                    await MainActor.run {
+                        editorModel.text = partial.content
+                        document.text = partial.content
+                    }
+                }
+
+                // Store the latest content for potential review
                 pendingAIText = partial.content
+
+                print("DEBUG: AI Response received - Length: \(partial.content.count)")
+                print("DEBUG: First 100 chars: \(String(partial.content.prefix(100)))")
             }
-            
-            // For selected text edits, we need to show the diff before applying changes
-            // The AI returns the full document with the edit applied
-            if !selectedText.isEmpty, let finalResponse = pendingAIText, !finalResponse.isEmpty {
-                // Don't apply the edit yet - let the user review it in the diff view first
-                // The diff view will show original vs AI-modified version
-            }
-            
+
             editText = ""
-            // Always show the diff view to review changes
-            if let _ = pendingAIText {
-                showReviewSheet = true
+
+            if let finalResponse = pendingAIText, !finalResponse.isEmpty {
+                // For selection edits, the document has already been updated via streaming with the correct reconstruction
+                // For full edits, the document has the full AI response
+                // Just check if there are actual changes
+
+                let originalTextTrimmed = originalText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let currentTextTrimmed = document.text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if originalTextTrimmed != currentTextTrimmed {
+                    print("DEBUG: Showing review dialog for edit (macOS)")
+                    print("DEBUG: Original text length: \(originalText.count)")
+                    print("DEBUG: Current text length: \(document.text.count)")
+
+                    // Show review sheet (document already has the correct content from streaming)
+                    showReviewSheet = true
+
+                    // Clear selection state
+                    selectedText = ""
+                    selectedRange = NSRange(location: 0, length: 0)
+                } else {
+                    // No changes, revert to original and show message
+                    await MainActor.run {
+                        editorModel.text = originalText
+                        document.text = originalText
+                        pendingAIText = nil
+                    }
+                    showToastMessage("No changes generated - content is already optimal")
+
+                    // Clear selection state
+                    selectedText = ""
+                    selectedRange = NSRange(location: 0, length: 0)
+                }
+            } else {
+                // No response, revert to original
+                await MainActor.run {
+                    editorModel.text = originalText
+                    document.text = originalText
+                    pendingAIText = nil
+                }
+                showToastMessage("No response generated")
+
+                // Clear selection state
+                selectedText = ""
+                selectedRange = NSRange(location: 0, length: 0)
             }
         } catch {
+            // On error, revert to original text
+            await MainActor.run {
+                editorModel.text = originalText
+                document.text = originalText
+                pendingAIText = nil
+            }
             showToastMessage("Failed to edit content: \(error.localizedDescription)")
         }
-        
+
         isGeneratingContent = false
         generationTask = nil
     }
     
     private func applyEditToSelection(originalText: String, newText: String) async {
         guard let textView = textView else { return }
-        
-        // Find the range of the selected text in the current document
+
+        // Use the stored selection range instead of searching for text
+        guard selectedRange.length > 0 else { return }
+
+        // Validate the range is still valid for the current text
         let currentText = editorModel.text
-        guard let range = currentText.range(of: originalText) else { return }
-        
-        // Convert Swift string range to NSRange
-        let nsRange = NSRange(range, in: currentText)
-        
+        let nsString = currentText as NSString
+        let safeRange = NSRange(
+            location: min(selectedRange.location, nsString.length),
+            length: min(selectedRange.length, max(0, nsString.length - selectedRange.location))
+        )
+
+        guard safeRange.location >= 0 && safeRange.length > 0 && safeRange.location + safeRange.length <= nsString.length else {
+            print("DEBUG: Selection range is no longer valid (macOS)")
+            return
+        }
+
         // Replace the selected text with the new text
-        textView.shouldChangeText(in: nsRange, replacementString: newText)
-        textView.replaceCharacters(in: nsRange, with: newText)
+        textView.shouldChangeText(in: safeRange, replacementString: newText)
+        textView.replaceCharacters(in: safeRange, with: newText)
         textView.didChangeText()
-        
+
         // Update the document and editor model
         document.text = textView.string
         editorModel.text = textView.string
-        
+
         // Update cursor position to end of new text
-        let newPosition = min(nsRange.location + newText.count, textView.string.count)
+        let newPosition = min(safeRange.location + newText.count, textView.string.count)
         textView.setSelectedRange(NSRange(location: newPosition, length: 0))
     }
     
@@ -922,7 +1230,7 @@ struct MacContentView: View {
     
     private func loadPosts() {
         let cosmic = CosmicSDKSwift(.createBucketClient(bucketSlug: BUCKET, readKey: READ_KEY, writeKey: WRITE_KEY))
-        
+
         cosmic.find(type: "writings",
                     props: "id,title,slug,type",
                     limit: 1000,
@@ -934,6 +1242,9 @@ struct MacContentView: View {
                     self.postCache.posts = response.objects
                         .filter { $0.type == "writings" }
                         .map { Post(id: $0.id!, title: $0.title, slug: $0.slug!) }
+
+                    // Load writing examples after posts are loaded
+                    self.writingService.loadWritingExamples()
                 case .failure(let error):
                     print("Failed to load posts: \(error)")
                 }
@@ -1507,55 +1818,7 @@ struct ReviewSheet: View {
     }
 }
 
-struct ReviewOverlay: View {
-    let originalText: String
-    let proposedText: String
-    let onAccept: () -> Void
-    let onReject: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("AI suggestion ready")
-                    .font(.headline)
-                Spacer()
-                Button(action: onReject) {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal)
-            
-            ScrollView {
-                Text(proposedText)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-            .frame(maxHeight: 260)
-            .padding(.horizontal)
-            
-            HStack {
-                Button("Compare…") { onReject() }
-                    .buttonStyle(.bordered)
-                Spacer()
-                Button("Reject") { onReject() }
-                    .buttonStyle(.bordered)
-                Button("Accept") { onAccept() }
-                    .buttonStyle(.borderedProminent)
-            }
-            .padding(.horizontal)
-            .padding(.bottom)
-        }
-        .padding(.vertical)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(radius: 8)
-        .padding()
-    }
-}
+
 
 struct ImageShelf: View {
     let onImageDropped: (URL) -> Void
@@ -1675,4 +1938,47 @@ struct ImageShelf: View {
         .background(.ultraThinMaterial)
     }
 }
+
+// Simple accept/reject dialog for generated content
+struct GenerateAcceptDialog: View {
+    let onAccept: () -> Void
+    let onReject: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(.accent)
+                Text("Apply changes?")
+                    .font(.headline)
+                Spacer()
+            }
+
+            Text("You're viewing generated content. Keep these changes or revert to your original draft.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            HStack {
+                Button("Revert") {
+                    onReject()
+                }
+                .buttonStyle(.bordered)
+                
+                Spacer()
+                
+                Button("Keep Changes") {
+                    onAccept()
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(16)
+        .glassEffect(in: .rect(cornerRadius: 16))
+        .frame(maxWidth: 420)
+        .shadow(radius: 8)
+    }
+}
 #endif
+
